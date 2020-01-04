@@ -27,12 +27,17 @@ doubledata<-  read.csv('https://osf.io/m9jph/download')
 
 #EHI analysis
 #create a file with standard format allowing us to use a function to repeat analysis across phenotypes
+#Comment out all but the current one
 #pheno<-'qhp_handedness' #also can have ehp_handedness
-pheno<-'ehp_handedness' #also can have ehp_handedness
+#pheno<-'ehp_handedness' #also can have ehp_handedness
 ##pheno<-'lat_index'
-fileprefix<-'QHP'
+#pheno<-'peakLI'
+#fileprefix<-'QHP'
 #fileprefix<-'lat_index'
-fileprefix<-'EHI'
+#fileprefix<-'EHI'
+pheno<-'peak_latcat'
+#fileprefix<-'peakLI'
+fileprefix<-'peak_latcat'
 mynames<-c(pheno,paste0(pheno,2))
 mycols<-which(colnames(doubledata) %in% mynames) #find which cols contain twin data
 tempdata<-data.frame(matrix(vector(), nrow(doubledata), 3,
@@ -82,7 +87,7 @@ mu<-0
 
 ```{r iterated.estimates,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE}
 umx_set_auto_plot(FALSE)
-niters<-4000
+niters<-5000
 simresults<-data.frame(matrix(NA,nrow=niters,ncol=4))
 colnames(simresults)<-c('a','apropall','se','infoDefinite')
 for (i in 1:niters){
@@ -93,7 +98,7 @@ colnames(simdatm)<-c('X1','X2')
 colnames(simdatd)<-c('X1','X2')
 
 
-# Test for genetic influence on laterality index
+# Test for genetic influence using umx
 m1 = umxACE("X", selDVs = "X", sep="", mzData = simdatm, dzData= simdatd)
 m2 = umxModify(m1, "c_r1c1", name="ae", comparison= TRUE) #drop C term - this is our starting model
 summ<-summary(m2)$parameters

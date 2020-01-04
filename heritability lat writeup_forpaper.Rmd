@@ -31,6 +31,7 @@ library(kableExtra) #hmm, this does not work with Word output
 require(flextable)
 library(officer)
 library(umx)
+library(RVAideMemoire) #for bootstrapped CIs on Spearman correlations
 
 #include = FALSE prevents code and results from appearing in the finished file. R Markdown still runs the code in the chunk, and the results can be used by other chunks. 
 #echo = FALSE prevents code, but not the results from appearing in the finished file.
@@ -122,14 +123,14 @@ if(readprocessed==0){
 # Produce data frame of selected columns 
 #----------------------------------------------------------
 
-data.short<-dplyr::select(mydata,record_id,fam_id,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials, lat_index,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_handedness,qhp_handedness,ehp_write,peakLI,peakLIse,peak_latcat,mean_left_flow,mean_right_flow)
+data.short<-dplyr::select(mydata,record_id,fam_id,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials, lat_index,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_handedness,qhp_handedness,ehp_write,peakLI,peakLIse,peak_latcat,mean_left_flow,mean_right_flow,mean_words,myse_mean)
 #identify cases to exclude because of less than 12 trials on doppler
 w<-c(which(data.short$n_trials<12),which(is.na(data.short$n_trials)))
 data.short$doppexcl <- 0
 data.short$doppexcl[w] <-1
 w<-which(data.short$ehp_write==999)
 data.short$ehp_write[w]<-NA
-
+data.short$lang_probs[data.short$lang_probs>1]<-1 #recodes so all values > 1 are now 1
 
 #-------------------------------------------------------
 # Create double entry file with twin 1 and 2 aligned
@@ -160,7 +161,7 @@ Nexcluded[3]<-nrec-nrow(doubledatax)-Nexcluded[1]-Nexcluded[2]
 Nexcluded<-Nexcluded/2
 
 #remove unwanted columns
-doubledata<-dplyr::select(doubledata,record_id, fam_id, age_at_test, female, zygosity, n_language_low , myinclude, twin, n_trials, lat_index, qhp_handedness , ehp_handedness , lang_probs, li_cat, ehp_write, peakLI,peak_latcat,doppexcl, mean_left_flow,mean_right_flow,female2, n_language_low2, myinclude2, twin2, n_trials2, lat_index2, qhp_handedness2, ehp_handedness2, lang_probs2, li_cat2, ehp_write2, peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,doppexcl2)
+doubledata<-dplyr::select(doubledata,record_id, fam_id, age_at_test, female, zygosity, n_language_low , myinclude, twin, n_trials, lat_index, qhp_handedness , ehp_handedness , lang_probs, li_cat, ehp_write, peakLI,peak_latcat,myse_mean,doppexcl, mean_left_flow,mean_right_flow,mean_words,female2, n_language_low2, myinclude2, twin2, n_trials2, lat_index2, qhp_handedness2, ehp_handedness2, lang_probs2, li_cat2, ehp_write2, peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,mean_words2,myse_mean2,doppexcl2)
 #make column where all DZ are 2 and all MZ are 1
 doubledata$MZDZ<-1
 doubledata$MZDZ[doubledata$zygosity>1]<-2
@@ -652,7 +653,50 @@ hist(doubledata$qhp_handedness,breaks=20)
 hist(doubledata$lat_index,breaks=20)
 }
 ```
+```{r createvars}
+#A bit more data wrangling to create measures that are suggested by reviewer comments
 
+#We'll compare with Somers et al, so define a binary category from the peak LI
+doubledata$peakcatbinary <-doubledata$peak_latcat
+w<-which(doubledata$peakcatbinary<0)
+doubledata$peakcatbinary[w]<-0 #combines bilateral and R
+doubledata$peakcatbinary2 <-doubledata$peak_latcat2
+w<-which(doubledata$peakcatbinary2<0)
+doubledata$peakcatbinary2[w]<-0 #combines bilateral and R
+
+#Subsequent analysis shows flow measures appear to have shared environment effect 
+#ie correlations significant regardless of zygosity.
+#Could this be an age or sex effect?
+#Try with scores residualised on these, and also on mean words spoken
+ #In fact, this makes v little difference to the flow measures
+
+mylm <- summary(lm(doubledata$mean_left_flow ~ doubledata$age_at_test+doubledata$female+doubledata$mean_words))
+doubledata$Lflow.resid<-doubledata$mean_left_flow -(mylm$coefficients[1,1]+
+                                        mylm$coefficients[2,1]*doubledata$age_at_test+
+                                        mylm$coefficients[3,1]*doubledata$female+
+                                          mylm$coefficients[4,1]*doubledata$mean_words)
+doubledata$Lflow.resid2<-doubledata$mean_left_flow2 -(mylm$coefficients[1,1]+
+                                        mylm$coefficients[2,1]*doubledata$age_at_test+
+                                        mylm$coefficients[3,1]*doubledata$female+
+                                          mylm$coefficients[4,1]*doubledata$mean_words)
+
+mylm2 <- summary(lm(doubledata$mean_right_flow ~ doubledata$age_at_test+doubledata$female+doubledata$mean_words))
+doubledata$Rflow.resid<-doubledata$mean_right_flow -(mylm2$coefficients[1,1]+
+                                        mylm2$coefficients[2,1]*doubledata$age_at_test+
+                                        mylm2$coefficients[3,1]*doubledata$female+
+                                          mylm$coefficients[4,1]*doubledata$mean_words)
+doubledata$Rflow.resid2<-doubledata$mean_right_flow2 -(mylm2$coefficients[1,1]+
+                                        mylm2$coefficients[2,1]*doubledata$age_at_test+
+                                        mylm2$coefficients[3,1]*doubledata$female+
+                                         mylm$coefficients[4,1]*doubledata$mean_words)
+
+#L and R flow are highly correlated: rather than a difference score, try LI as a residual
+mylm3 <- summary(lm(doubledata$mean_left_flow ~ doubledata$mean_right_flow))
+doubledata$LIresid<-doubledata$mean_left_flow -(mylm3$coefficients[1,1]+
+    mylm3$coefficients[2,1]*doubledata$mean_right_flow)
+doubledata$LIresid2<-doubledata$mean_left_flow2 -(mylm3$coefficients[1,1]+                    mylm3$coefficients[2,1]*doubledata$mean_right_flow2)
+
+```
 ```{r AEmodel, echo=FALSE}
 #---------------------------------------------------------------
 #Try fitting AE model, despite low correlations.
@@ -710,95 +754,83 @@ aatable[mytask,6]<-round(pars[1,1]^2,2)
 
 ```{r batesunivariate, echo=FALSE, include=FALSE}
 #Including formatting into a nice table with everything in it
-uutable<-data.frame(matrix(NA,nrow=(length(mxcols)/2),ncol=9))
-colnames(uutable)<-c('Measure','N MZ pair','N DZ pair','rMZ','rDZ','a2','95% CI','Fitindex1','Fitindex2')
+mycols<-c("ehp_handedness", "qhp_handedness", "lat_index","peakLI","peakcatbinary","Lflow.resid","Rflow.resid","LIresid")
+mycolnames<-c("Edinburgh Handedness Inventory","Quantification of Hand Preference","Laterality index (fTCD)","Laterality index (peak FTCD)", "Binary typical (1)/atypical (0)","Mean flow L","Mean flow R","LI as residual")
+
+uutable<-data.frame(matrix(NA,nrow=(length(mycols)),ncol=10))
+colnames(uutable)<-c('Measure','N MZ pair','N DZ pair','rMZ','rDZ','a2','95% CI','chisq','p','RMSEA')
 #NB 95CI will be done from bootstrap_CI.Rmd
 
-umx_set_auto_plot(FALSE)
+umx_set_auto_plot(FALSE) #turn off the umx plots
 #umx gives v slightly different estimates of a2 than the standard ACE above.
 #I am using the OpenMx versions 
-#We'll compare with Somers et al, so use a binary category from the peak LI
-doubledata$peakcatbinary <-doubledata$peak_latcat
-w<-which(doubledata$peakcatbinary<0)
-doubledata$peakcatbinary[w]<-0 #combines bilateral and R
-doubledata$peakcatbinary2 <-doubledata$peak_latcat2
-w<-which(doubledata$peakcatbinary2<0)
-doubledata$peakcatbinary2[w]<-0 #combines bilateral and R
+
 
 df = doubledata # for ease of typing
-#Need to rename columns to fit umx syntax
-mycols<-c("ehp_handedness", "qhp_handedness", "lat_index","peakLI","peakcatbinary","mean_left_flow","mean_right_flow")
+#create new columns, X_T1 and X_T2, which are recycled for each measure
 for (j in 1:length(mycols)){
-  c<-which(names(df)==mycols[j])
-  names(df)[c]<-paste0(mycols[j],'_T1')
-  name2<-paste0(mycols[j],'2')
-    cc<-which(names(df)==name2)
-  names(df)[cc]<-paste0(mycols[j],'_T2')
+  
+  if (j>2)
+ # {df<-filter(df,myse_mean<1,doppout==0)}
+   {df<-subset(df,doppout==0)} #drop rows with missing data for the doppler measures
+  
+  col1<-which(names(df)==mycols[j]) #find the column for this measure t1
+  df$X_T1 <-df[,col1] #allocate contents of this column to variable X_T1
+  name2<-paste0(mycols[j],'2') #repeat for twin 2
+   col2<-which(names(df)==name2)
+  df$X_T2 <-df[,col2]
+
+mzData = subset(df, MZDZ==1)
+dzData = subset(df, MZDZ==2)
+
+#Populate first cols of uutable
+thisrow<-j
+uutable$Measure[thisrow] <- mycolnames[j]
+uutable$`N MZ pair`[thisrow] <- nrow(mzData)/2
+uutable$`N DZ pair`[thisrow] <- nrow(dzData)/2
+sp.m<-spearman.ci(mzData$X_T1, mzData$X_T2, nrep = 1000, conf.level = 0.95)
+uutable$rMZ[thisrow] <- paste0(round(sp.m$estimate,3)," (",round(sp.m$conf.int[1],3),' to ',round(sp.m$conf.int[2],3),')')
+sp.d<-spearman.ci(dzData$X_T1, dzData$X_T2, nrep = 1000, conf.level = 0.95)
+uutable$rDZ[thisrow] <- paste0(round(sp.d$estimate,3)," (",round(sp.d$conf.int[1],3),' to ',round(sp.d$conf.int[2],3),')')
+
+# Test for genetic influence 
+m1 = umxACE("EHP", selDVs = "X", sep="_T", mzData = mzData, dzData= dzData)
+m2 = umxModify(m1, "c_r1c1", name="ae", comparison= TRUE)
+m3 = umxModify(m2, "a_r1c1", name="e", comparison= TRUE)
+mycomp<-umxCompare(m2, m3)
+summ<-summary(m2)
+
+#compute a2 as proportion of variance from raw estimates
+a2<-summ$parameters$Estimate[2]^2/(summ$parameters$Estimate[2]^2+summ$parameters$Estimate[3]^2)
+if (sp.d$estimate>sp.m$estimate){a2<-a2*-1}
+uutable$a2[thisrow]<-round(a2,3)
+
+#add chi sq for comparison with model 3
+uutable$chisq[thisrow]<-round(mycomp$`∆ -2LL`[2],1)
+uutable$p[thisrow]<-mycomp$p[2]
+uutable$RMSEA[thisrow]<-summ$RMSEA
+if(j<6){
+#add bootstrapped CI computed with bootstrap_ci.Rmd
+  
+  #########################################################################
+  #need to specify directory where bootstrapped estimates are stored here!
+  setwd("/Users/dorothybishop/twin_mz_dz_analysis/bootstrap_estimates")
+  #########################################################################
+  
+bootfile<-paste0(mycols[j],'_bootstraps_umx_5000.csv')
+myboots<-read.csv(bootfile,stringsAsFactors=F)
+goodresults<-myboots[myboots$infoDefinite==T,]
+q3<-quantile(goodresults$apropall,.05)
+q4<-quantile(goodresults$apropall,.95)
+myCI<-(paste(round(q3,3),'-',round(q4,3)))
+uutable$`95% CI`[j]<-myCI
 }
-mzData = subset(df, MZDZ==1)
-dzData = subset(df, MZDZ==2)
+}
 
-# Test for genetic influence on EHP
-m1 = umxACE("EHP", selDVs = "ehp_handedness", sep="_T", mzData = mzData, dzData= dzData)
-m2 = umxModify(m1, "c_r1c1", name="ae", comparison= TRUE)
-m3 = umxModify(m2, "a_r1c1", name="e", comparison= TRUE)
-umxCompare(m2, m3)
-umxSummary(m2)
-summary(m2)$parameters
-# Test for genetic influence on QHP
-m1 = umxACE("QHP", selDVs = "qhp_handedness", sep="_T", mzData = mzData, dzData= dzData)
-m2 = umxModify(m1, "c_r1c1", name="ae", comparison= TRUE)
-m3 = umxModify(m2, "a_r1c1", name="e", comparison= TRUE)
-umxCompare(m2, m3)
-umxSummary(m2)
-summary(m2)$parameters
 
-df<-subset(df,doppout==0)
-mzData = subset(df, MZDZ==1)
-dzData = subset(df, MZDZ==2)
 
-# Test for genetic influence on laterality index
-m1 = umxACE("lat_index", selDVs = "lat_index", sep="_T", mzData = mzData, dzData= dzData)
-m2 = umxModify(m1, "c_r1c1", name="ae", comparison= TRUE) #drop C term - this is our starting model
-m3 = umxModify(m2, "a_r1c1", name="e", comparison= TRUE)
-umxCompare(m2, m3)
-umxSummary(m2)
-summary(m2)$parameters
 
-# Test for genetic influence on peak laterality index
-m1 = umxACE("peakLI", selDVs = "peakLI", sep="_T", mzData = mzData, dzData= dzData)
-m2 = umxModify(m1, "c_r1c1", name="ae", comparison= TRUE) #drop C term - this is our starting model
-m3 = umxModify(m2, "a_r1c1", name="e", comparison= TRUE)
-umxCompare(m2, m3)
-umxSummary(m2)
-summary(m2)$parameters
 
-# Test for genetic influence on peak laterality category (as in Somers et al - just binary)
-
-m1 = umxACE("peakcatbinary", selDVs = "peakcatbinary", sep="_T", mzData = mzData, dzData= dzData)
-m2 = umxModify(m1, "c_r1c1", name="ae", comparison= TRUE) #drop C term - this is our starting model
-m3 = umxModify(m2, "a_r1c1", name="e", comparison= TRUE)
-umxCompare(m2, m3)
-umxSummary(m2)
-summary(m2)$parameters
-
-# Test for genetic influence on mean left flow 
-
-m1 = umxACE("Mean L flow", selDVs = "mean_left_flow", sep="_T", mzData = mzData, dzData= dzData)
-m2 = umxModify(m1, "c_r1c1", name="ae", comparison= TRUE) #drop C term - this is our starting model
-m3 = umxModify(m2, "a_r1c1", name="e", comparison= TRUE)
-umxCompare(m2, m3)
-umxSummary(m2)
-summary(m2)$parameters
-
-# Test for genetic influence on mean right flow 
-
-m1 = umxACE("Mean R flow", selDVs = "mean_right_flow", sep="_T", mzData = mzData, dzData= dzData)
-m2 = umxModify(m1, "c_r1c1", name="ae", comparison= TRUE) #drop C term - this is our starting model
-m3 = umxModify(m2, "a_r1c1", name="e", comparison= TRUE)
-umxCompare(m2, m3)
-umxSummary(m2)
-summary(m2)$parameters
 ```
 
 ```{r batesmulti,echo=FALSE, include=FALSE}
@@ -1014,7 +1046,7 @@ nupairnum<-sample(1000, npairs, replace = FALSE)
 doubledata$rand_id[1:npairs]<-paste0(nupairnum,'A')
 doubledata$rand_id[(npairs+1):(2*npairs)]<-paste0(nupairnum,'B')
 doubledata$fam_randid<-rep(nupairnum,2)
-dataforOSF<-dplyr::select(doubledata,c(rand_id,fam_randid,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials,lat_index,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_write,doppexcl,female2,n_language_low2,myinclude2,twin2,n_trials2,lat_index2,qhp_handedness2,ehp_handedness2,lang_probs2,li_cat2,ehp_write2,doppexcl2,MZDZ,langconcord,doppout,zygosex))
+dataforOSF<-dplyr::select(doubledata,c(rand_id,fam_randid,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials,lat_index,myse_mean,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_write,peakLI,peak_latcat,mean_left_flow,mean_right_flow,mean_words,doppexcl,female2,n_language_low2,myinclude2,twin2,n_trials2,lat_index2,myse_mean2,qhp_handedness2,ehp_handedness2,lang_probs2,li_cat2,ehp_write2,peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,doppexcl2,MZDZ,langconcord,doppout,zygosex))
 dataforOSF$age_at_test<-round(dataforOSF$age_at_test/24,0) #age in 2 yr bands to improve anonymisation
 dataforOSF$age_at_test<-as.factor(dataforOSF$age_at_test)
 levels(dataforOSF$age_at_test)<-c('6_7','8_9','10_11','12_13')
@@ -1115,9 +1147,7 @@ Figure 1. Density plots for handedness and language laterality indices
 Figure 2. Scatterplots by zygosity for handedness and language laterality indices. The data from handedness measures are jittered; Spearman correlation coefficients are shown.
 
 
-```{r saveworkspace}
-save(file = "heritability_lat_workspace.RData")
-```
+
 
 ```{r sessinfo, include=FALSE}
 sessionInfo()
