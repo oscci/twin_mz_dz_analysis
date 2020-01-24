@@ -1,5 +1,5 @@
 ---
-title: "bootstrapCI"
+title: "bootstrapCImeanflow"
 author: "DVM Bishop"
 date: "01/01/2020"
 output: html_document
@@ -14,10 +14,11 @@ require(OpenMx)
 require(umx)
 ```
 
-## Using bootstrapping for confidence intervals around a2
+## Using bootstrapping for confidence intervals around c2
 
 This is a separate module created in response to reviewer request.
 We load in the data from from OSF, which are same as used in heritability lat writeup.Rmd
+NB for mean flow measures, we test CE rather than AE model
 
 ```{r readdata}
 doubledata<-  read.csv('https://osf.io/m9jph/download') 
@@ -25,19 +26,13 @@ doubledata<-  read.csv('https://osf.io/m9jph/download')
 
 ```{r getparameters}
 
-#EHI analysis
-#create a file with standard format allowing us to use a function to repeat analysis across phenotypes
-#Comment out all but the current one
-#pheno<-'qhp_handedness' #also can have ehp_handedness
-#pheno<-'ehp_handedness' #also can have ehp_handedness
-##pheno<-'lat_index'
-#pheno<-'peakLI'
-#fileprefix<-'QHP'
-#fileprefix<-'lat_index'
-#fileprefix<-'EHI'
-pheno<-'peak_latcat'
-#fileprefix<-'peakLI'
-fileprefix<-'peak_latcat'
+f=2 #set to 2 for doing right flow
+pheno<-'mean_left_flow'
+fileprefix<-'mean_left_flow'
+if (f==2){
+  pheno<-'mean_right_flow'
+fileprefix<-'mean_right_flow'
+}
 mynames<-c(pheno,paste0(pheno,2))
 mycols<-which(colnames(doubledata) %in% mynames) #find which cols contain twin data
 tempdata<-data.frame(matrix(vector(), nrow(doubledata), 3,
@@ -89,7 +84,7 @@ mu<-0
 umx_set_auto_plot(FALSE)
 niters<-5000
 simresults<-data.frame(matrix(NA,nrow=niters,ncol=4))
-colnames(simresults)<-c('a','apropall','se','infoDefinite')
+colnames(simresults)<-c('c','cpropall','se','infoDefinite')
 for (i in 1:niters){
  if(i/100==round(i/100,0)) {print(i)}
 simdatm<-data.frame(mvrnorm(n=nm,mu=c(mu,mu),Sigmam))
@@ -100,11 +95,11 @@ colnames(simdatd)<-c('X1','X2')
 
 # Test for genetic influence using umx
 m1 = umxACE("X", selDVs = "X", sep="", mzData = simdatm, dzData= simdatd)
-m2 = umxModify(m1, "c_r1c1", name="ae", comparison= TRUE) #drop C term - this is our starting model
+m2 = umxModify(m1, "a_r1c1", name="ce", comparison= TRUE) #drop C term - this is our starting model
 summ<-summary(m2)$parameters
-a2estM <- summ$Estimate[2]^2/(summ$Estimate[2]^2+summ$Estimate[3]^2) #proportion of sumsq assoc with a2
-simresults$apropall[i]<-a2estM #proportion estimate of a2
-simresults$a[i]<-summ$Estimate[2] # a umx est
+c2estM <- summ$Estimate[2]^2/(summ$Estimate[2]^2+summ$Estimate[3]^2) #proportion of sumsq assoc with a2
+simresults$cpropall[i]<-c2estM #proportion estimate of c2
+simresults$c[i]<-summ$Estimate[2] # c umx est
 simresults$se[i]<-summ$Std.Error[2] #umx SE
 
 simresults$infoDefinite[i]<-summary(m2)$infoDefinite
@@ -114,25 +109,26 @@ filename<-paste0(fileprefix,'bootstraps_umx_',niters,'.csv')
 write.csv(simresults,filename)
 
 goodresults<-simresults[simresults$infoDefinite==T,]
-goodresults$a2<-goodresults$a^2
+goodresults$c2<-goodresults$c^2
 
-q1<-quantile(goodresults$a2,.05)
-q2<-quantile(goodresults$a2,.95)
-print(paste('95%CI for a^2 = ',round(q1,3),'to',round(q2,3)))
+q1<-quantile(goodresults$c2,.05)
+q2<-quantile(goodresults$c2,.95)
+print(paste('95%CI for c^2 = ',round(q1,3),'to',round(q2,3)))
 
-q3<-quantile(goodresults$apropall,.05)
-q4<-quantile(goodresults$apropall,.95)
-print(paste('95%CI for apropall = ',round(q3,3),'to',round(q4,3)))
+q3<-quantile(goodresults$cpropall,.05)
+q4<-quantile(goodresults$cpropall,.95)
+print(paste('95%CI for cpropall = ',round(q3,3),'to',round(q4,3)))
 
-meana<-mean(goodresults$a)
+meanc<-mean(goodresults$c)
 meanse<-mean(goodresults$se)
-print(paste('mean  a  = ',meana))
-print(paste('mean estimated SE for a  = ',meanse))
-computedlower<-round(meana-1.96*meanse,3)
-computedupper<-round(meana+1.96*meanse,3)
-print(paste('Computed 95% CI for a = ',computedlower,'to',computedupper))
-print(paste('squared Computed 95% CI for a = ',computedlower^2,'to',computedupper^2))
+print(paste('mean  c  = ',meanc))
+print(paste('mean estimated SE for c  = ',meanse))
+computedlower<-round(meanc-1.96*meanse,3)
+computedupper<-round(meanc+1.96*meanse,3)
+print(paste('Computed 95% CI for c = ',computedlower,'to',computedupper))
+print(paste('squared Computed 95% CI for c = ',computedlower^2,'to',computedupper^2))
        
+
 ```
 
 
