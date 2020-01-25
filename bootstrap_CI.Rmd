@@ -1,7 +1,7 @@
 ---
 title: "bootstrapCI"
 author: "DVM Bishop"
-date: "01/01/2020"
+date: "25/01/2020"
 output: html_document
 ---
 
@@ -86,6 +86,7 @@ mu<-0
 # Will simulate with single entry and then create double entry file to run it
 
 ```{r iterated.estimates,echo=FALSE,warning=FALSE,message=FALSE,error=FALSE,include=FALSE}
+#important to set include = FALSE to avoid major problems from script writing output for every simulation
 umx_set_auto_plot(FALSE)
 niters<-5000
 simresults<-data.frame(matrix(NA,nrow=niters,ncol=4))
