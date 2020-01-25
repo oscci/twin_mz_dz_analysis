@@ -12,8 +12,11 @@ output:
 ---
 
 ```{r setup,  include=FALSE, echo=FALSE}
+# most recent version 
+# Fri Jan 24 09:57:13 2020 ------------------------------
+
 #---------------------------------------------------------------
-knitr::opts_chunk$set(message = FALSE,warning=FALSE)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 #install.OpenMx("travis") #latest OpenMx if not already installed
 #Needs OpenMx, which you get with following command (not CRAN)
 #Hmm - having problems with OpenMx - now using Cran version
@@ -21,17 +24,17 @@ knitr::opts_chunk$set(message = FALSE,warning=FALSE)
 #source('https://openmx.ssri.psu.edu/software/getOpenMx.R')
 require(yarrr)
 require(stargazer) #Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
-# R package version 5.2.1. https://CRAN.R-project.org/package=stargazer 
+# R package version 5.2.1. https://CRAN.R-project.org/package=stargazer
 require(tidyverse)
 require(OpenMx)
 require(MASS)
 require(psych) #for phi coeff
 require(ggpubr)
-library(kableExtra) #hmm, this does not work with Word output
+require(kableExtra) #hmm, this does not work with Word output
 require(flextable)
-library(officer)
-library(umx)
-library(RVAideMemoire) #for bootstrapped CIs on Spearman correlations
+require(officer)
+require(umx)
+require(RVAideMemoire) #for bootstrapped CIs on Spearman correlations
 
 #include = FALSE prevents code and results from appearing in the finished file. R Markdown still runs the code in the chunk, and the results can be used by other chunks. 
 #echo = FALSE prevents code, but not the results from appearing in the finished file.
@@ -40,84 +43,102 @@ source('http://ibg.colorado.edu/cdrom2016/verhulst/Power/powerFun.R')
 #see http://www.people.vcu.edu/~bverhulst/power/powerScript.R
 #mxOption(NULL, 'Default optimizer', 'NPSOL') #?? this gets 'could not find function mxOption'
 
-tabnum<-0 #keeps track of table numbers. 
-readprocessed<-0 #if set to one, read processed data from OSF.
-#If zero, recreates processed data file. NB This option will not work for external users, as it requires access to files with confidential data.
+tabnum <- 0 #keeps track of table numbers.
+readprocessed <- 1 #if set to one, read processed data from OSF.
+#If zero, recreates processed data file. 
+# NB This option will not work for external users, as it requires access to files with confidential data.
 #---------------------------------------------------------------
 ```
 
 ```{r readdata, echo=FALSE}
-if(readprocessed==0){
-#---------------------------------------------------------------
-#Read data before any text as need to refer to Ns etc computed here.
-#Version from April 2019 includes LI indices using means rather than peaks, and also has measure of
-#cross-trial consistency
-#---------------------------------------------------------------
-mydir<-"/Users/dorothybishop/Dropbox/ERCadvanced/project twin kids/Project_files/"
-#mydir<-"c:/Users/pthompson/Dropbox/project twin kids/Project_files/"
-myfile<-"TwinsData_DATA_2019-04-12_1525.csv"
-mydata<-data.frame(read_csv(paste0(mydir,"Data/",myfile)))
-#str(mydata)
-w<-which(colnames(mydata)=='include')  #this relates to exclusion criteria re IQ,autism etc : not used here
-colnames(mydata)[w]<-'myinclude' #to avoid problems with having 'include' as column name
+if(readprocessed==0) {
+  #---------------------------------------------------------------
+  #Read data before any text as need to refer to Ns etc computed here.
+  #Version from April 2019 includes LI indices using means rather than peaks, and also has measure of
+  #cross-trial consistency
+  #---------------------------------------------------------------
+  mydir <-
+  "/Users/dorothybishop/Dropbox/ERCadvanced/project twin kids/Project_files/"
+  #mydir<-"c:/Users/pthompson/Dropbox/project twin kids/Project_files/"
+  myfile <- "TwinsData_DATA_2019-04-12_1525.csv"
+  mydata <- data.frame(read_csv(paste0(mydir, "Data/", myfile)))
+  #str(mydata) #to inspect mydata
+  w <-
+  which(colnames(mydata) == 'include')  #this relates to exclusion criteria re IQ,autism etc : not used here
+  colnames(mydata)[w] <-
+  'myinclude' #to avoid problems with having 'include' as column name
 }
 ```
 
 
 ```{r makeLIcat, echo=FALSE}
-if(readprocessed==0){
-mydata$lat_index<-as.numeric(mydata$myli_mean)  #the original laterality_index values in file are LIs from peak
-#my_li_mean was added in April 2019
-#NB Reviewers want to see both analyses, so both retained
+if(readprocessed==0) {
+  mydata$lat_index <-
+  as.numeric(mydata$myli_mean)  #the original laterality_index values in file are LIs from peak
+  #my_li_mean was added in April 2019
+  #NB Reviewers want to see both analyses, so both retained
+  
+  mydata$myse_mean <- as.numeric(mydata$myse_mean)
+  mydata$my_li_mean_even <- as.numeric(mydata$my_li_mean_even)
+  mydata$my_li_mean_odd <- as.numeric(mydata$my_li_mean_odd)
+  #Relevant column names. first block are from peak measures
+  #print(colnames(mydata)[c(84:92, 101:105)]) - checking we have correct columns
+  #rename columns to clarify which are mean and which are peak
+  w <-
+  which(
+  colnames(mydata) %in% c(
+  'laterality_index',
+  'li_se',
+  'low_ci',
+  'high_ci',
+  'lateralised_category'
+  )
+  )
+  colnames(mydata)[w] <-
+  c('peakLI',
+  'peakLIse',
+  'peaklow_ci',
+  'peakhi_ci',
+  'peak_latcat')
+  
+  #print(colnames(mydata)[c(84:92, 101:105)])
+  
+  mydata$qhp_handedness <- mydata$qhp_freq_r + .5 * mydata$qhp_freq_e
+  
+  #categorise laterality as 1=L, 2=bi, 3 = R depending on whether mean value is outside 1.96*SE limit
+  #NB can use 1.96 or 1.65 here, but 1.96 is same as used by Wilson and Bishop
+  CIterm <- 1.96
+  mydata$li_cat <- NA
+  w <- which(mydata$lat_index > 0)
+  mydata$li_cat[w] <-
+  1 #default is L laterlised for those with +ve values
+  x <- mydata$lat_index[w] - CIterm * mydata$myse_mean[w]
+  #need to be careful here re indices - we are now working with the w subset and finding which are -ve
+  y <- which(x < 0)
+  w1 <-
+  w[y] #these should be the indices from the original full file with L sided lat but large SE -> bilateral
+  mydata$li_cat[w1] <- 2
+  
+  #Now do the same for R lateralised
+  w <- which(mydata$lat_index < 0)
+  mydata$li_cat[w] <-
+  3 #default is R lateralised for those with -ve values
+  x <-
+  mydata$lat_index[w] + CIterm * mydata$myse_mean[w] #this time we add the 1.96*SE term
+  #need to be careful here re indices - we are now working with the w subset and finding which are -ve
+  y <- which(x > 0)
+  w1 <-
+  w[y] #these should be the indices from the original full file with R sided lat but large SE -> bilateral
+  mydata$li_cat[w1] <- 2
+  
+  #temp<-dplyr::select(mydata,lat_index,myse_mean,li_cat) #view temp to check output
+  temp <-
+  filter(mydata, n_trials > 11) #same as Wilson and bishop, have at least 12 trials
+  oldnewtab <- table(temp$li_cat, temp$peak_latcat)
+  #Mean method gives more bilateral cases - I guess not surprising.
+  
+  #--------------------------------------------------------------------------------------
 
-mydata$myse_mean<-as.numeric(mydata$myse_mean)
-mydata$my_li_mean_even<-as.numeric(mydata$my_li_mean_even)
-mydata$my_li_mean_odd<-as.numeric(mydata$my_li_mean_odd)
-#Relevant column names. first block are from peak measures
-print(colnames(mydata)[c(84:92,101:105)])
-#rename columns to clarify which are mean and which are peak
-w<-which(colnames(mydata)%in% c('laterality_index','li_se','low_ci','high_ci','lateralised_category'))
-colnames(mydata)[w]<-c('peakLI','peakLIse','peaklow_ci','peakhi_ci','peak_latcat')
-
-print(colnames(mydata)[c(84:92,101:105)])
-
-mydata$qhp_handedness<-mydata$qhp_freq_r+.5*mydata$qhp_freq_e
-
-#categorise laterality as 1=L, 2=bi, 3 = R depending on whether mean value is outside 1.96*SE limit
-#NB can use 1.96 or 1.65 here, but 1.96 is same as used by Wilson and Bishop
-CIterm<-1.96
-mydata$li_cat<-NA
-w<-which(mydata$lat_index>0)
-mydata$li_cat[w]<-1 #default is L laterlised for those with +ve values
-x<-mydata$lat_index[w]-CIterm*mydata$myse_mean[w]
-#need to be careful here re indices - we are now working with the w subset and finding which are -ve
-y<-which(x<0)
-w1<-w[y] #these should be the indices from the original full file with L sided lat but large SE -> bilateral
-mydata$li_cat[w1]<-2
-
-#Now do the same for R lateralised
-w<-which(mydata$lat_index<0)
-mydata$li_cat[w]<-3 #default is R lateralised for those with -ve values
-x<-mydata$lat_index[w]+CIterm*mydata$myse_mean[w] #this time we add the 1.96*SE term
-#need to be careful here re indices - we are now working with the w subset and finding which are -ve
-y<-which(x>0)
-w1<-w[y] #these should be the indices from the original full file with R sided lat but large SE -> bilateral
-mydata$li_cat[w1]<-2
-
-#temp<-dplyr::select(mydata,lat_index,myse_mean,li_cat) #view temp to check output
-temp<-filter(mydata,n_trials>11) #same as Wilson and bishop, have at least 12 trials
-oldnewtab<-table(temp$li_cat,temp$peak_latcat)
-#Mean method gives more bilateral cases - I guess not surprising. 
-
-#--------------------------------------------------------------------------------------
-#Compute correlations which will be reported in the text
-#check correlation between old (peak) and new (mean) LI methods
-oldnewLIcor<-cor(temp$peakLI,temp$lat_index,use='pairwise.complete.obs')
-oldnewLIcorDF<-nrow(temp)-2
-
-#check split half reliablity
-splithalfr<-cor(temp$my_li_mean_even,temp$my_li_mean_odd,use='pairwise.complete.obs')
-#--------------------------------------------------------------------------------------
 }
 ```
 
@@ -128,70 +149,77 @@ if(readprocessed==0){
 # Produce data frame of selected columns, called data.short
 #----------------------------------------------------------
 
-data.short<-dplyr::select(mydata,record_id,fam_id,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials, lat_index,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_handedness,qhp_handedness,ehp_write,peakLI,peakLIse,peak_latcat,mean_left_flow,mean_right_flow,mean_words,myse_mean)
+data.short<-dplyr::select(mydata,record_id,fam_id,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials, lat_index,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_handedness,qhp_handedness,ehp_write,peakLI,peakLIse,peak_latcat,mean_left_flow,mean_right_flow,mean_words,myse_mean,my_li_mean_odd,my_li_mean_even)
+
 #identify cases to exclude because of less than 12 trials on doppler
-w<-c(which(data.short$n_trials<12),which(is.na(data.short$n_trials)))
+w <- c(which(data.short$n_trials < 12), which(is.na(data.short$n_trials)))
 data.short$doppexcl <- 0
-data.short$doppexcl[w] <-1
-w<-which(data.short$ehp_write==999)
-data.short$ehp_write[w]<-NA
-data.short$lang_probs[data.short$lang_probs>1]<-1 #recodes so all values > 1 are now 1
+data.short$doppexcl[w] <- 1
+w <- which(data.short$ehp_write == 999)
+data.short$ehp_write[w] <- NA
+data.short$lang_probs[data.short$lang_probs > 1] <- 1 #recodes so all values > 1 are now 1
 
 #-------------------------------------------------------
 # Create double entry file with twin 1 and 2 aligned
 #NB this code needs redoing to cope with possibility of additional columns
 # This works but depends crucially on the column numbers specified in the colnames column
 #-------------------------------------------------------
-nrec<-nrow(data.short)
-ncol<-ncol(data.short)
-Nexcluded<-vector()
-nuorder2<-c(seq(from=2,to=nrec,by=2),seq(from=1,to=nrec,by=2))
-nuorder1<-c(seq(from=1,to=nrec,by=2),seq(from=2,to=nrec,by=2))
-doubledata<-cbind(data.short[nuorder1,],data.short[nuorder2,])
-w1<-which(colnames(doubledata)=='record_id')
+nrec <- nrow(data.short)
+ncol <- ncol(data.short)
+Nexcluded <- vector()
+nuorder2 <- c(seq(from = 2, to = nrec, by = 2), seq(from = 1, to = nrec, by =
+2))
+nuorder1 <- c(seq(from = 1, to = nrec, by = 2), seq(from = 2, to = nrec, by =
+2))
+doubledata <- cbind(data.short[nuorder1, ], data.short[nuorder2, ])
+w1 <- which(colnames(doubledata) == 'record_id')
 
-colnames(doubledata)[w1[2]:ncol(doubledata)]<-paste0(colnames(doubledata)[1:(w1[2]-1)],2)
-#check all aligned
-check<-sum(doubledata$fam_id-doubledata$fam_id2)
-if(check>0) {print('Twins not aligned!!!')}
-doubledatax<-filter(doubledata,myinclude>0,myinclude2>0)
-Nexcluded[1]<-nrec-nrow(doubledatax) 
-doubledatax<-filter(doubledata,n_trials> 11,n_trials2>11)
-Nexcluded[2]<-nrec-nrow(doubledatax)-Nexcluded[1]
-doubledatax<-filter(doubledatax,abs(peakLI)<10,abs(peakLI2)<10)
-doubledatax<-filter(doubledatax,abs(lat_index)<10,abs(lat_index2)<10)
-Nexcluded[3]<-nrec-nrow(doubledatax)-Nexcluded[1]-Nexcluded[2]
-
+colnames(doubledata)[w1[2]:ncol(doubledata)] <-
+  paste0(colnames(doubledata)[1:(w1[2] - 1)], 2)
+  #check all aligned
+  check <- sum(doubledata$fam_id - doubledata$fam_id2)
+  if (check > 0) {
+  print('Twins not aligned!!!')
+  }
+  doubledatax <- filter(doubledata, myinclude > 0, myinclude2 > 0)
+  Nexcluded[1] <- nrec - nrow(doubledatax)
+  doubledatax <- filter(doubledata, n_trials > 11, n_trials2 > 11)
+  Nexcluded[2] <- nrec - nrow(doubledatax) - Nexcluded[1]
+  doubledatax <- filter(doubledatax, abs(peakLI) < 10, abs(peakLI2) < 10)
+  doubledatax <-
+  filter(doubledatax, abs(lat_index) < 10, abs(lat_index2) < 10)
+  Nexcluded[3] <- nrec - nrow(doubledatax) - Nexcluded[1] - Nexcluded[2]
+  
 #unit of analysis is twin pair excluded, so need to divide by 2 as one row per twin
-Nexcluded<-Nexcluded/2
+  Nexcluded <- Nexcluded / 2
 
 #remove unwanted columns
-doubledata<-dplyr::select(doubledata,record_id, fam_id, age_at_test, female, zygosity, n_language_low , myinclude, twin, n_trials, lat_index, qhp_handedness , ehp_handedness , lang_probs, li_cat, ehp_write, peakLI,peak_latcat,myse_mean,doppexcl, mean_left_flow,mean_right_flow,mean_words,female2, n_language_low2, myinclude2, twin2, n_trials2, lat_index2, qhp_handedness2, ehp_handedness2, lang_probs2, li_cat2, ehp_write2, peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,mean_words2,myse_mean2,doppexcl2)
+doubledata <- dplyr::select(doubledata,record_id, fam_id, age_at_test, female, zygosity, n_language_low , myinclude, twin, n_trials, lat_index, qhp_handedness , ehp_handedness , lang_probs, li_cat, ehp_write, peakLI,peak_latcat,myse_mean,doppexcl, mean_left_flow,mean_right_flow,mean_words,female2, n_language_low2, myinclude2, twin2, n_trials2, lat_index2, qhp_handedness2, ehp_handedness2, lang_probs2, li_cat2, ehp_write2, peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,mean_words2,myse_mean2,doppexcl2,my_li_mean_odd,my_li_mean_even)
 #make column where all DZ are 2 and all MZ are 1
-doubledata$MZDZ<-1
-doubledata$MZDZ[doubledata$zygosity>1]<-2
+doubledata$MZDZ <- 1
+doubledata$MZDZ[doubledata$zygosity > 1] <- 2
 #make column for excluding pair if one or both has no good doppler data
-doubledata$doppout<-0
-doubledata$doppout[doubledata$doppexcl==1]<-1
-doubledata$doppout[doubledata$doppexcl2==1]<-1
+doubledata$doppout <- 0
+doubledata$doppout[doubledata$doppexcl == 1] <- 1
+doubledata$doppout[doubledata$doppexcl2 == 1] <- 1
 
 # Make langconcord column: this is just count of N twins with zero on lang_problems, else 1
 # This is not used for analysis but is reported in text
-doubledata$langconcord<-0
-doubledata$langconcord[doubledata$lang_probs>0]<-1
-w<-which(doubledata$lang_probs2>0)
-doubledata$langconcord[w]<-1+doubledata$langconcord[w]
+doubledata$langconcord <- 0
+doubledata$langconcord[doubledata$lang_probs > 0] <- 1
+w <- which(doubledata$lang_probs2 > 0)
+doubledata$langconcord[w] <- 1 + doubledata$langconcord[w]
 
 }
 ```
 
 ```{r readdoubledata,include=FALSE}
 #-------------------------------------------------------------------------
-if(readprocessed==1){
-# Start here if reading in data from OSF
-  doubledata<-  read.csv('https://osf.io/m9jph/download') #when data public can read in direct from OSF
+if(readprocessed==1) {
+  # Start here if reading in data from OSF
+  doubledata <- read.csv('https://osf.io/m9jph/download') #when data public can read in direct from OSF
   #doubledata<-read.csv('TwinLatOSF.csv',stringsAsFactors = FALSE) #if reading downloaded file
-  doubledata$fam_id<-doubledata$fam_randid #need fam_id variable at later stage
+  doubledata$fam_id <- doubledata$fam_randid #need fam_id variable at later stage
 }
 #-------------------------------------------------------------------------
 
@@ -199,22 +227,22 @@ if(readprocessed==1){
 
 
 
+
 ```{r countconcordanttwins, echo=FALSE,include=FALSE}
 #The twin concordance for language problems is reported as background information in the paper
-conc.table<-table(doubledata$MZDZ,doubledata$langconcord,doubledata$twin)
-conc.table<-conc.table[,,1] #one twin pair only
-rownames(conc.table)<-c('MZ','DZ')
-colnames(conc.table)<-c('neither','one','both')
-percenttab<-round(100*prop.table(conc.table,1),0)
-par(mfrow=c(1,2))
-par(mar=c(0,0,1,0))
-slices <- conc.table[1,2:3]
-#lbls <- c("One twin","Both twins")
-lbls <-c('','')
-pie(slices, labels=lbls, main="Language concordance: \nIdentical twins")
-slices <- conc.table[2,2:3]
+conc.table <- table(doubledata$MZDZ, doubledata$langconcord, doubledata$twin)
+conc.table <- conc.table[, , 1] #one twin pair only
+rownames(conc.table) <- c('MZ', 'DZ')
+colnames(conc.table) <- c('neither', 'one', 'both')
+percenttab <- round(100 * prop.table(conc.table, 1), 0)
+par(mfrow = c(1, 2))
+par(mar = c(0, 0, 1, 0))
+slices <- conc.table[1, 2:3]
+lbls <- c('', '')
+pie(slices, labels = lbls, main = "Language concordance: \nIdentical twins")
+slices <- conc.table[2, 2:3]
 
-pie(slices, labels =lbls, main="Language concordance: \nNonidentical twins")
+pie(slices, labels = lbls, main = "Language concordance: \nNonidentical twins")
 # Can view pie if wanted, but it's not used in the paper
 ```
 
@@ -222,28 +250,41 @@ pie(slices, labels =lbls, main="Language concordance: \nNonidentical twins")
 #-------------------------------------------------------
 # Exclude pairs with unusable data - either twin
 #-------------------------------------------------------
-
-
-doubledata$doppout <-doubledata$doppexcl+doubledata$doppexcl2
-w<-which(doubledata$doppout==2)
-doubledata$doppout[w]<-1
+doubledata$doppout <- doubledata$doppexcl + doubledata$doppexcl2
+w <- which(doubledata$doppout == 2)
+doubledata$doppout[w] <- 1
 
 #remove case of extreme LI, defined as +/-10
-w<-c(which(abs(doubledata$lat_index)>12),which(abs(doubledata$lat_index2)>12))
-doubledata$doppout[w]<-1 #picks up case with LI of -21,which is more than 5 SD from mean!
-# There seems no good reason for this extreme score- data look clean! 
+w <- c(which(abs(doubledata$lat_index) > 12), which(abs(doubledata$lat_index2) >
+12))
+doubledata$doppout[w] <-1 #picks up case with LI of -21,which is more than 5 SD from mean!
+# There seems no good reason for this extreme score- data look clean
 # Nothing in this child's history to suggest abnormality. But LI is so extreme it is best removed.
 
-doubledata2<-filter(doubledata,doppout<1)
+doubledata2 <- filter(doubledata, doppout < 1)
 
 # Unit of analysis is twin pair excluded, so need to divide by 2 as one row per twin
 
-Npairwithhand <- nrow(doubledata)/2
-Npairwithdopp<-nrow(doubledata2)/2
+Npairwithhand <- nrow(doubledata) / 2
+Npairwithdopp <- nrow(doubledata2) / 2
 
 #identify N dropped because too few trials
-w<-which(doubledata$n_trials<12)
-nlowN<-length(unique(doubledata$fam_id[w])) #This number will be reported in text
+w <- which(doubledata$n_trials < 12)
+nlowN <- length(unique(doubledata$fam_id[w])) #This number will be reported in text
+
+```
+
+```{r computecorrs}
+  #Compute correlations which will be reported in the text
+  #check correlation between old (peak) and new (mean) LI methods
+  oldnewLIcor <-
+  cor(doubledata$peakLI, doubledata$lat_index, use = 'pairwise.complete.obs')
+  oldnewLIcorDF <- sum(is.na(doubledata$peakLI)) - 2
+  
+  #check split half reliablity
+  splithalfr <-
+  cor(doubledata$my_li_mean_even, doubledata$my_li_mean_odd, use = 'pairwise.complete.obs')
+  #--------------------------------------------------------------------------------------
 ```
 
 ## Abstract
@@ -381,16 +422,30 @@ This section is copied from Wilson & Bishop (2018). Ethical approval was obtaine
 
 ```{r batespower, echo=FALSE, include=FALSE}
 #Script for power analysis from Tim Bates
-smallN<-nrow(doubledata2)/2 #N pairs for laterality index; n= 141
-bigN<-nrow(doubledata)/2 #N pair for handedeness; n = 194
+smallN <- nrow(doubledata2) / 2 #N pairs for laterality index; n= 141
+bigN <- nrow(doubledata) / 2 #N pair for handedeness; n = 194
 
-tmp = umx_make_TwinData(nMZpairs = 2000, nDZpairs = 2000,  AA = .25, CC = 0, varNames = "var", mean = 0, empirical = TRUE)
+tmp = umx_make_TwinData(
+nMZpairs = 2000,
+nDZpairs = 2000,
+AA = .25,
+CC = 0,
+varNames = "var",
+mean = 0,
+empirical = TRUE
+)
 mzData = subset(tmp, zygosity == "MZ") #did not work, but substituted 2 lines below
 dzData = subset(tmp, zygosity == "DZ")
 
 
-ace = umxACE(selDVs = "var", sep = "_T", mzData = mzData, dzData = dzData, tryHard = "yes")
-ae = umxModify(ace, "c_r1c1", name="ae", tryHard = "yes")
+ace = umxACE(
+selDVs = "var",
+sep = "_T",
+mzData = mzData,
+dzData = dzData,
+tryHard = "yes"
+)
+ae = umxModify(ace, "c_r1c1", name = "ae", tryHard = "yes")
 nullModel = umxModify(ae, "a_r1c1", name = "e", tryHard = "yes")
 
 #https://rdrr.io/cran/umx/man/power.ACE.test.html
@@ -399,18 +454,33 @@ nullModel = umxModify(ae, "a_r1c1", name = "e", tryHard = "yes")
 #We get to 80% power for aa of.215 with n = 139.
 
 #The n is the total N twin pairs, MZ+DZ
-thissize=.215 #use .185 for larger sample - with n = 189 this gives 80% power
-p <- power.ACE.test(AA= thissize, CC=0,update="a_after_dropping_c", power=.73, method="ncp")
+thissize = .215 #use .185 for larger sample - with n = 189 this gives 80% power
+p <-
+power.ACE.test(
+AA = thissize,
+CC = 0,
+update = "a_after_dropping_c",
+power = .73,
+method = "ncp"
+)
 
- print(p)
- 
-thissize=.333 #
-p <- power.ACE.test(AA= thissize, CC=0,update="a_after_dropping_c", power=.95, method="ncp")
+print(p)
 
- print(p)
+thissize = .333 #
+p <-
+power.ACE.test(
+AA = thissize,
+CC = 0,
+update = "a_after_dropping_c",
+power = .95,
+method = "ncp"
+)
+
+print(p)
 
 
 ```
+
 
 
 ## Data analysis
@@ -424,6 +494,7 @@ A power analysis was conducted to estimate the power to detect heritability of .
 
 
 ```{r plothistos,echo=FALSE}
+# function to do all density plots
 makehistos <- function(mytitle){
 h<-ggdensity(doubledata, x = "thisx",
    add = "mean", rug = FALSE, title=mytitle,xlab='Score',ylab='Density',
@@ -434,6 +505,7 @@ return(h)
 ```
 
 ```{r computespearman,echo=FALSE}
+#function to compute Spearman correlation value
 makespearman <- function(thismz,thisdz){
   #create text with Spearman correlation values.
 #NB need to compute these from *unjittered* data 
@@ -452,6 +524,7 @@ return(mylabelbit)
 ```
 
 ```{r scatterfunction,echo=FALSE, include=FALSE}
+# function to do scatterplots
 makescatter <- function(mytitle,xpos,ypos,filetitle,vline,mylabeldf,mylabelbit){
   g <-ggscatter(doubledata[1:singlerows,], x = 'myx', y = 'myy',
             xlab='Twin 1',ylab='Twin 2',
@@ -480,87 +553,91 @@ makescatter <- function(mytitle,xpos,ypos,filetitle,vline,mylabeldf,mylabelbit){
 #Use the makescatter function defined above for all the plots
 
 
-doubledata$Zygosity<-as.factor(doubledata$MZDZ) #Initial caps for version that is factor with 2 values
-levels(doubledata$Zygosity)<-c('MZ','DZ')
-singlerows<-nrow(doubledata)/2
+
+doubledata$Zygosity <-
+as.factor(doubledata$MZDZ) #Initial caps for version that is factor with 2 values
+levels(doubledata$Zygosity) <- c('MZ', 'DZ')
+singlerows <- nrow(doubledata) / 2
 
 #EHI plot
 #compute spearman correlation using function and assemble into string
-doubledata$thisx<-doubledata$ehp_handedness
-doubledata$thisy<-doubledata$ehp_handedness2
-thismz<-filter(doubledata,MZDZ==1)
-thisdz<-filter(doubledata,MZDZ==2)
-mylabelbit<-makespearman(thismz,thisdz)
+doubledata$thisx <- doubledata$ehp_handedness
+doubledata$thisy <- doubledata$ehp_handedness2
+thismz <- filter(doubledata, MZDZ == 1)
+thisdz <- filter(doubledata, MZDZ == 2)
+mylabelbit <- makespearman(thismz, thisdz)
 
 #add jitter to points before plotting
-myjitter<-rnorm(nrow(doubledata))/4.5 #need to add jitter to points for plotting
-doubledata$myx<-doubledata$ehp_handedness+myjitter
-myjitter<-rnorm(nrow(doubledata))/4.5
-doubledata$myy<-doubledata$ehp_handedness2+myjitter
-mytitle<-'Edinburgh Handedness Inventory'
-filetitle<-'ehiplot.png'
-vline=5.5
-xpos <- c(2.2,2.2)
-ypos <- c(4.5,3.5)
-g1<-makescatter(mytitle,xpos,ypos,filetitle,vline,mylabeldf,mylabelbit)
-h1<-makehistos(mytitle)
+myjitter <- rnorm(nrow(doubledata)) / 4.5 #need to add jitter to points for plotting
+doubledata$myx <- doubledata$ehp_handedness + myjitter
+myjitter <- rnorm(nrow(doubledata)) / 4.5
+doubledata$myy <- doubledata$ehp_handedness2 + myjitter
+mytitle <- 'Edinburgh Handedness Inventory'
+filetitle <- 'ehiplot.png'
+vline = 5.5
+xpos <- c(2.2, 2.2)
+ypos <- c(4.5, 3.5)
+g1 <- makescatter(mytitle, xpos, ypos, filetitle, vline, mylabeldf, mylabelbit)
+h1 <- makehistos(mytitle)
 ```
 
 ###########################################################################################
 ```{r QHPplot, echo=FALSE}
 
 #compute spearman correlation using function and assemble into string
-doubledata$thisx<-doubledata$qhp_handedness
-doubledata$thisy<-doubledata$qhp_handedness2
-thismz<-filter(doubledata,MZDZ==1)
-thisdz<-filter(doubledata,MZDZ==2)
-mylabelbit<-makespearman(thismz,thisdz)
+doubledata$thisx <- doubledata$qhp_handedness
+doubledata$thisy <- doubledata$qhp_handedness2
+thismz <- filter(doubledata, MZDZ == 1)
+thisdz <- filter(doubledata, MZDZ == 2)
+mylabelbit <- makespearman(thismz, thisdz)
 
-myjitter<-rnorm(nrow(doubledata))/4
-doubledata$myx<-doubledata$qhp_handedness+myjitter
-myjitter<-rnorm(nrow(doubledata))/4
-doubledata$myy<-doubledata$qhp_handedness2+myjitter
-xpos<-c(3,3) #coordinates for correlation on plot
-ypos<-c(8,6)
-mytitle<-'Quantification of Hand Preference'
-filetitle<-'qhpplot.png'
-vline=11
-g2 <-makescatter(mytitle,xpos,ypos,filetitle,vline,mylabeldf,mylabelbit)
-h2<-makehistos(mytitle)
+myjitter <- rnorm(nrow(doubledata)) / 4
+doubledata$myx <- doubledata$qhp_handedness + myjitter
+myjitter <- rnorm(nrow(doubledata)) / 4
+doubledata$myy <- doubledata$qhp_handedness2 + myjitter
+xpos <- c(3, 3) #coordinates for correlation on plot
+ypos <- c(8, 6)
+mytitle <- 'Quantification of Hand Preference'
+filetitle <- 'qhpplot.png'
+vline = 11
+g2 <- makescatter(mytitle, xpos, ypos, filetitle, vline, mylabeldf, mylabelbit)
+h2 <- makehistos(mytitle)
 ```
 ###########################################################################################
 ```{r LIplot, echo=FALSE}
-w<-which(doubledata$doppout==1) #rather than using doubledata2, we just create column which 
-#turns LIs to NA for those with too few trials
-doubledata$lat_index[w]<-NA #this removes outlier value 
-doubledata$lat_index2[w]<-NA
+w <- which(doubledata$doppout == 1) #rather than using doubledata2, we just create column which
+  #turns LIs to NA for those with too few trials
+  doubledata$lat_index[w] <- NA #this removes outlier value
+  doubledata$lat_index2[w] <- NA
+  
+  #compute spearman correlation using function and assemble into string
+  doubledata$thisx <- doubledata$lat_index
+  doubledata$thisy <- doubledata$lat_index2
+  thismz <- filter(doubledata, MZDZ == 1)
+  thisdz <- filter(doubledata, MZDZ == 2)
+  mylabelbit <- makespearman(thismz, thisdz)
+  doubledata$myx <- doubledata$lat_index #no need for jitter with LI
+  doubledata$myy <- doubledata$lat_index2
+  mytitle <- 'Laterality Index (fTCD)'
+  xpos <- c(4, 4) #coordinates for correlation on plot
+  ypos <- c(10, 9)
+  filetitle <- 'LIplot.png'
+  vline = 0
+  g3 <-
+  makescatter(mytitle, xpos, ypos, filetitle, vline, mylabeldf, mylabelbit)
+  h3 <- makehistos(mytitle)
 
-#compute spearman correlation using function and assemble into string
-doubledata$thisx<-doubledata$lat_index
-doubledata$thisy<-doubledata$lat_index2
-thismz<-filter(doubledata,MZDZ==1)
-thisdz<-filter(doubledata,MZDZ==2)
-mylabelbit<-makespearman(thismz,thisdz)
-doubledata$myx<-doubledata$lat_index #no need for jitter with LI
-doubledata$myy<-doubledata$lat_index2
-mytitle<-'Laterality Index (fTCD)'
-xpos<-c(4,4) #coordinates for correlation on plot
-ypos<-c(10,9)
-filetitle<-'LIplot.png'
-vline=0
-g3<-makescatter(mytitle,xpos,ypos,filetitle,vline,mylabeldf,mylabelbit)
-h3<-makehistos(mytitle)
-
-#add histogram for peak measure
-doubledata$thisx<-doubledata$peakLI
-doubledata$thisy<-doubledata$peakLI2
-w<-which(doubledata$doppout==1) #rather than using doubledata2, we just create column which 
-#turns LIs to NA for those with too few trials
-doubledata$peakindex[w]<-NA #this removes outlier value 
-doubledata$peakindex2[w]<-NA
-thismz<-filter(doubledata,MZDZ==1)
-thisdz<-filter(doubledata,MZDZ==2)
-mytitle<-'Laterality Index (peak fTCD)'
+  #add histogram for peak measure, as requested by reviewers
+  doubledata$thisx <- doubledata$peakLI
+  doubledata$thisy <- doubledata$peakLI2
+  w <-
+  which(doubledata$doppout == 1) #rather than using doubledata2, we just create column which
+  #turns LIs to NA for those with too few trials
+  doubledata$peakindex[w] <- NA #this removes outlier value
+  doubledata$peakindex2[w] <- NA
+  thismz <- filter(doubledata, MZDZ == 1)
+  thisdz <- filter(doubledata, MZDZ == 2)
+  mytitle <- 'Laterality Index (peak fTCD)'
 
 filetitle<-'LIplotpeak.png'
 vline=0
@@ -664,38 +741,13 @@ hist(doubledata$lat_index,breaks=20)
 #A bit more data wrangling to create measures that are suggested by reviewer comments
 
 #We'll compare with Somers et al, so define a binary category from the peak LI
-doubledata$peakcatbinary <-doubledata$peak_latcat
-w<-which(doubledata$peakcatbinary<0)
-doubledata$peakcatbinary[w]<-0 #combines bilateral and R
-doubledata$peakcatbinary2 <-doubledata$peak_latcat2
-w<-which(doubledata$peakcatbinary2<0)
-doubledata$peakcatbinary2[w]<-0 #combines bilateral and R
+doubledata$peakcatbinary <- doubledata$peak_latcat
+w <- which(doubledata$peakcatbinary < 0)
+doubledata$peakcatbinary[w] <- 0 #combines bilateral and R
+doubledata$peakcatbinary2 <- doubledata$peak_latcat2
+w <- which(doubledata$peakcatbinary2 < 0)
+doubledata$peakcatbinary2[w] <- 0 #combines bilateral and R
 
-#Subsequent analysis shows flow measures appear to have shared environment effect 
-#ie correlations significant regardless of zygosity.
-#Could this be an age or sex effect?
-#Try with scores residualised on these, and also on mean words spoken
- #In fact, this makes v little difference to the flow measures
-
-mylm <- summary(lm(doubledata$mean_left_flow ~ doubledata$age_at_test+doubledata$female+doubledata$mean_words))
-doubledata$Lflow.resid<-doubledata$mean_left_flow -(mylm$coefficients[1,1]+
-                                        mylm$coefficients[2,1]*doubledata$age_at_test+
-                                        mylm$coefficients[3,1]*doubledata$female+
-                                          mylm$coefficients[4,1]*doubledata$mean_words)
-doubledata$Lflow.resid2<-doubledata$mean_left_flow2 -(mylm$coefficients[1,1]+
-                                        mylm$coefficients[2,1]*doubledata$age_at_test+
-                                        mylm$coefficients[3,1]*doubledata$female+
-                                          mylm$coefficients[4,1]*doubledata$mean_words)
-
-mylm2 <- summary(lm(doubledata$mean_right_flow ~ doubledata$age_at_test+doubledata$female+doubledata$mean_words))
-doubledata$Rflow.resid<-doubledata$mean_right_flow -(mylm2$coefficients[1,1]+
-                                        mylm2$coefficients[2,1]*doubledata$age_at_test+
-                                        mylm2$coefficients[3,1]*doubledata$female+
-                                          mylm$coefficients[4,1]*doubledata$mean_words)
-doubledata$Rflow.resid2<-doubledata$mean_right_flow2 -(mylm2$coefficients[1,1]+
-                                        mylm2$coefficients[2,1]*doubledata$age_at_test+
-                                        mylm2$coefficients[3,1]*doubledata$female+
-                                         mylm$coefficients[4,1]*doubledata$mean_words)
 
 
 
@@ -713,7 +765,7 @@ ntv <- nv*2 #N columns (twins)
 aatable <-data.frame(matrix(NA,nrow=7,ncol=6))
 colnames(aatable)<-c('Measure','N_MZ','N_DZ','a','a_SE','a_sqr')
 mxcols <-matrix(c('ehp_handedness','ehp_handedness2','qhp_handedness','qhp_handedness2','lat_index','lat_index2','peakLI','peakLI2','peak_latcat','peak_latcat2','mean_left_flow','mean_left_flow2','mean_right_flow','mean_right_flow2'),nrow=7,byrow=TRUE)
-for (mytask in 1:7){
+for (mytask in 1:5){
 selVars <- mxcols[mytask,1:2]
 latcols<-which(names(doubledata)%in%selVars)
 rowrange<-1:(nrow(doubledata)/2)
@@ -753,6 +805,7 @@ aatable[mytask,5]<-pars[1,2]
 aatable[mytask,6]<-round(pars[1,1]^2,2)
 # aatable has the a squared estimates that we need in final column, but the SE is for unsquared a!
 # We want a SE for heritability estimate, ie squared value. This will be achieved by bootstrapping.
+write.csv(aatable,'aatable.csv',sep='',row.names=F,col.names=T)
 }
 ```
 
@@ -764,7 +817,7 @@ aatable[mytask,6]<-round(pars[1,1]^2,2)
 # NB these aren't computed for the flow measures, as the AE model is not suitable for these!
 # Flow measures look as if they have influence of CE, so this is computed for them!
 
-mycols<-c("ehp_handedness", "qhp_handedness", "lat_index","peakLI","peakcatbinary","Lflow.resid","Rflow.resid")
+mycols<-c("ehp_handedness", "qhp_handedness", "lat_index","peakLI","peakcatbinary","mean_left_flow","mean_right_flow")
 mycolnames<-c("Edinburgh Handedness Inventory","Quantification of Hand Preference","Laterality index (fTCD)","Laterality index (peak FTCD)", "Binary typical (1)/atypical (0)","Mean flow L","Mean flow R")
 
 uutable<-data.frame(matrix(NA,nrow=(length(mycols)),ncol=10))
@@ -828,11 +881,10 @@ if(j<6){
 #add bootstrapped CI computed with bootstrap_ci.Rmd
   
   #########################################################################
-  #need to specify directory where bootstrapped estimates are stored here!
-  setwd("/Users/dorothybishop/twin_mz_dz_analysis/bootstrap_estimates")
+  #need to specify directory to find bootstrapped estimates in filepath
   #########################################################################
   
-bootfile<-paste0(mycols[j],'_bootstraps_umx_5000.csv')
+bootfile<-paste0("bootstrap_estimates/",mycols[j],'_bootstraps_umx_5000.csv')
 myboots<-read.csv(bootfile,stringsAsFactors=F)
 goodresults<-myboots[myboots$infoDefinite==T,]
 q3<-quantile(goodresults$apropall,.05)
@@ -1054,6 +1106,26 @@ ft3
 #https://davidgohel.github.io/flextable/articles/examples.html
 ```
 
+```{r residualise.flow}
+if(readprocessed==0){
+mylm <- summary(lm(doubledata$mean_left_flow ~ doubledata$age_at_test+doubledata$female+doubledata$mean_words))
+doubledata$Lflow.resid<-doubledata$mean_left_flow -(mylm$coefficients[1,1]+
+                                                      mylm$coefficients[2,1]*doubledata$age_at_test+
+                                                      mylm$coefficients[3,1]*doubledata$female)
+doubledata$Lflow.resid2<-doubledata$mean_left_flow2 -(mylm$coefficients[1,1]+
+                                                        mylm$coefficients[2,1]*doubledata$age_at_test+
+                                                        mylm$coefficients[3,1]*doubledata$female)
+
+mylm2 <- summary(lm(doubledata$mean_right_flow ~ doubledata$age_at_test+doubledata$female+doubledata$mean_words))
+doubledata$Rflow.resid<-doubledata$mean_right_flow -(mylm2$coefficients[1,1]+
+                                                       mylm2$coefficients[2,1]*doubledata$age_at_test+
+                                                       mylm2$coefficients[3,1]*doubledata$female)
+doubledata$Rflow.resid2<-doubledata$mean_right_flow2 -(mylm2$coefficients[1,1]+
+                                                         mylm2$coefficients[2,1]*doubledata$age_at_test+
+                                                         mylm2$coefficients[3,1]*doubledata$female)
+}                                                   
+```
+
 ```{r savedoubledata, include=FALSE, echo=FALSE}
 #change the ID number - make random set of nums
 if(readprocessed==0){
@@ -1062,7 +1134,7 @@ nupairnum<-sample(1000, npairs, replace = FALSE)
 doubledata$rand_id[1:npairs]<-paste0(nupairnum,'A')
 doubledata$rand_id[(npairs+1):(2*npairs)]<-paste0(nupairnum,'B')
 doubledata$fam_randid<-rep(nupairnum,2)
-dataforOSF<-dplyr::select(doubledata,c(rand_id,fam_randid,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials,lat_index,myse_mean,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_write,peakLI,peak_latcat,mean_left_flow,mean_right_flow,mean_words,doppexcl,female2,n_language_low2,myinclude2,twin2,n_trials2,lat_index2,myse_mean2,qhp_handedness2,ehp_handedness2,lang_probs2,li_cat2,ehp_write2,peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,doppexcl2,MZDZ,langconcord,doppout,zygosex))
+dataforOSF<-dplyr::select(doubledata,c(rand_id,fam_randid,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials,lat_index,myse_mean,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_write,peakLI,peak_latcat,mean_left_flow,mean_right_flow,Lflow.resid,Rflow.resid,my_li_mean_odd,my_li_mean_even,mean_words,doppexcl,female2,n_language_low2,myinclude2,twin2,n_trials2,lat_index2,myse_mean2,qhp_handedness2,ehp_handedness2,lang_probs2,li_cat2,ehp_write2,peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,Lflow.resid2,Rflow.resid2,doppexcl2,MZDZ,langconcord,doppout,zygosex))
 dataforOSF$age_at_test<-round(dataforOSF$age_at_test/24,0) #age in 2 yr bands to improve anonymisation
 dataforOSF$age_at_test<-as.factor(dataforOSF$age_at_test)
 levels(dataforOSF$age_at_test)<-c('6_7','8_9','10_11','12_13')

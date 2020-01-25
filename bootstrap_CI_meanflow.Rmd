@@ -24,14 +24,15 @@ NB for mean flow measures, we test CE rather than AE model
 doubledata<-  read.csv('https://osf.io/m9jph/download') 
 ```
 
+
 ```{r getparameters}
 
 f=2 #set to 2 for doing right flow
-pheno<-'mean_left_flow'
-fileprefix<-'mean_left_flow'
+pheno<-'Lflow.resid'
+fileprefix<-'Lflow.resid'
 if (f==2){
-  pheno<-'mean_right_flow'
-fileprefix<-'mean_right_flow'
+  pheno<-'Rflow.resid'
+fileprefix<-'Rflow.resid'
 }
 mynames<-c(pheno,paste0(pheno,2))
 mycols<-which(colnames(doubledata) %in% mynames) #find which cols contain twin data
@@ -104,7 +105,8 @@ simresults$se[i]<-summ$Std.Error[2] #umx SE
 
 simresults$infoDefinite[i]<-summary(m2)$infoDefinite
 } 
-filename<-paste0(fileprefix,'bootstraps_umx_',niters,'.csv')
+
+filename<-paste0('bootstrap_estimates/',fileprefix,'_bootstraps_umx_',niters,'.csv')
 
 write.csv(simresults,filename)
 
