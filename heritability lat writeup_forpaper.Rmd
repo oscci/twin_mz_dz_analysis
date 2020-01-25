@@ -13,7 +13,7 @@ output:
 
 ```{r setup,  include=FALSE, echo=FALSE}
 # most recent version 
-# Fri Jan 24 09:57:13 2020 ------------------------------
+# ts  Fri Jan 24 09:57:13 2020 ------------------------------
 
 #---------------------------------------------------------------
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
@@ -44,13 +44,13 @@ source('http://ibg.colorado.edu/cdrom2016/verhulst/Power/powerFun.R')
 #mxOption(NULL, 'Default optimizer', 'NPSOL') #?? this gets 'could not find function mxOption'
 
 tabnum <- 0 #keeps track of table numbers.
-readprocessed <- 1 #if set to one, read processed data from OSF.
+readprocessed <- 0 #if set to one, read processed data from OSF.
 #If zero, recreates processed data file. 
 # NB This option will not work for external users, as it requires access to files with confidential data.
 #---------------------------------------------------------------
 ```
 
-```{r readdata, echo=FALSE}
+```{r readdata, include=FALSE}
 if(readprocessed==0) {
   #---------------------------------------------------------------
   #Read data before any text as need to refer to Ns etc computed here.
@@ -138,7 +138,16 @@ if(readprocessed==0) {
   #Mean method gives more bilateral cases - I guess not surprising.
   
   #--------------------------------------------------------------------------------------
-
+  #Compute correlations which will be reported in the text
+  #check correlation between old (peak) and new (mean) LI methods
+  oldnewLIcor <-
+  cor(temp$peakLI, temp$lat_index, use = 'pairwise.complete.obs')
+  oldnewLIcorDF <- nrow(temp) - 2
+  
+  #check split half reliablity
+  splithalfr <-
+  cor(temp$my_li_mean_even, temp$my_li_mean_odd, use = 'pairwise.complete.obs')
+  #--------------------------------------------------------------------------------------
 }
 ```
 
@@ -149,7 +158,7 @@ if(readprocessed==0){
 # Produce data frame of selected columns, called data.short
 #----------------------------------------------------------
 
-data.short<-dplyr::select(mydata,record_id,fam_id,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials, lat_index,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_handedness,qhp_handedness,ehp_write,peakLI,peakLIse,peak_latcat,mean_left_flow,mean_right_flow,mean_words,myse_mean,my_li_mean_odd,my_li_mean_even)
+data.short<-dplyr::select(mydata,record_id,fam_id,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials, lat_index,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_handedness,qhp_handedness,ehp_write,peakLI,peakLIse,peak_latcat,mean_left_flow,mean_right_flow,mean_words,myse_mean)
 
 #identify cases to exclude because of less than 12 trials on doppler
 w <- c(which(data.short$n_trials < 12), which(is.na(data.short$n_trials)))
@@ -194,7 +203,7 @@ colnames(doubledata)[w1[2]:ncol(doubledata)] <-
   Nexcluded <- Nexcluded / 2
 
 #remove unwanted columns
-doubledata <- dplyr::select(doubledata,record_id, fam_id, age_at_test, female, zygosity, n_language_low , myinclude, twin, n_trials, lat_index, qhp_handedness , ehp_handedness , lang_probs, li_cat, ehp_write, peakLI,peak_latcat,myse_mean,doppexcl, mean_left_flow,mean_right_flow,mean_words,female2, n_language_low2, myinclude2, twin2, n_trials2, lat_index2, qhp_handedness2, ehp_handedness2, lang_probs2, li_cat2, ehp_write2, peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,mean_words2,myse_mean2,doppexcl2,my_li_mean_odd,my_li_mean_even)
+doubledata <- dplyr::select(doubledata,record_id, fam_id, age_at_test, female, zygosity, n_language_low , myinclude, twin, n_trials, lat_index, qhp_handedness , ehp_handedness , lang_probs, li_cat, ehp_write, peakLI,peak_latcat,myse_mean,doppexcl, mean_left_flow,mean_right_flow,mean_words,female2, n_language_low2, myinclude2, twin2, n_trials2, lat_index2, qhp_handedness2, ehp_handedness2, lang_probs2, li_cat2, ehp_write2, peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,mean_words2,myse_mean2,doppexcl2)
 #make column where all DZ are 2 and all MZ are 1
 doubledata$MZDZ <- 1
 doubledata$MZDZ[doubledata$zygosity > 1] <- 2
@@ -224,9 +233,6 @@ if(readprocessed==1) {
 #-------------------------------------------------------------------------
 
 ```
-
-
-
 
 ```{r countconcordanttwins, echo=FALSE,include=FALSE}
 #The twin concordance for language problems is reported as background information in the paper
@@ -272,19 +278,6 @@ Npairwithdopp <- nrow(doubledata2) / 2
 w <- which(doubledata$n_trials < 12)
 nlowN <- length(unique(doubledata$fam_id[w])) #This number will be reported in text
 
-```
-
-```{r computecorrs}
-  #Compute correlations which will be reported in the text
-  #check correlation between old (peak) and new (mean) LI methods
-  oldnewLIcor <-
-  cor(doubledata$peakLI, doubledata$lat_index, use = 'pairwise.complete.obs')
-  oldnewLIcorDF <- sum(is.na(doubledata$peakLI)) - 2
-  
-  #check split half reliablity
-  splithalfr <-
-  cor(doubledata$my_li_mean_even, doubledata$my_li_mean_odd, use = 'pairwise.complete.obs')
-  #--------------------------------------------------------------------------------------
 ```
 
 ## Abstract
@@ -1134,7 +1127,7 @@ nupairnum<-sample(1000, npairs, replace = FALSE)
 doubledata$rand_id[1:npairs]<-paste0(nupairnum,'A')
 doubledata$rand_id[(npairs+1):(2*npairs)]<-paste0(nupairnum,'B')
 doubledata$fam_randid<-rep(nupairnum,2)
-dataforOSF<-dplyr::select(doubledata,c(rand_id,fam_randid,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials,lat_index,myse_mean,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_write,peakLI,peak_latcat,mean_left_flow,mean_right_flow,Lflow.resid,Rflow.resid,my_li_mean_odd,my_li_mean_even,mean_words,doppexcl,female2,n_language_low2,myinclude2,twin2,n_trials2,lat_index2,myse_mean2,qhp_handedness2,ehp_handedness2,lang_probs2,li_cat2,ehp_write2,peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,Lflow.resid2,Rflow.resid2,doppexcl2,MZDZ,langconcord,doppout,zygosex))
+dataforOSF<-dplyr::select(doubledata,c(rand_id,fam_randid,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials,lat_index,myse_mean,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_write,peakLI,peak_latcat,mean_left_flow,mean_right_flow,Lflow.resid,Rflow.resid,mean_words,doppexcl,female2,n_language_low2,myinclude2,twin2,n_trials2,lat_index2,myse_mean2,qhp_handedness2,ehp_handedness2,lang_probs2,li_cat2,ehp_write2,peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,Lflow.resid2,Rflow.resid2,doppexcl2,MZDZ,langconcord,doppout,zygosex))
 dataforOSF$age_at_test<-round(dataforOSF$age_at_test/24,0) #age in 2 yr bands to improve anonymisation
 dataforOSF$age_at_test<-as.factor(dataforOSF$age_at_test)
 levels(dataforOSF$age_at_test)<-c('6_7','8_9','10_11','12_13')
