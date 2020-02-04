@@ -35,6 +35,7 @@ require(flextable)
 require(officer)
 require(umx)
 require(RVAideMemoire) #for bootstrapped CIs on Spearman correlations
+require(ggExtra) #for scatterplot with marginals
 
 #include = FALSE prevents code and results from appearing in the finished file. R Markdown still runs the code in the chunk, and the results can be used by other chunks. 
 #echo = FALSE prevents code, but not the results from appearing in the finished file.
@@ -44,7 +45,7 @@ source('http://ibg.colorado.edu/cdrom2016/verhulst/Power/powerFun.R')
 #mxOption(NULL, 'Default optimizer', 'NPSOL') #?? this gets 'could not find function mxOption'
 
 tabnum <- 0 #keeps track of table numbers.
-readprocessed <- 1 #if set to one, read processed data from OSF.
+readprocessed <- 0 #if set to one, read processed data from OSF.
 # If zero, recreates processed data file. 
 # NB This option (0) will not work for external users, as it requires access to files with confidential data.
 #---------------------------------------------------------------
@@ -149,7 +150,7 @@ if(readprocessed==0){
 # Produce data frame of selected columns, called data.short
 #----------------------------------------------------------
 
-data.short<-dplyr::select(mydata,record_id,fam_id,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials, lat_index,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_handedness,qhp_handedness,ehp_write,peakLI,peakLIse,peak_latcat,mean_left_flow,mean_right_flow,mean_words,myse_mean)
+data.short<-dplyr::select(mydata,record_id,fam_id,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials, lat_index,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_handedness,qhp_handedness,ehp_write,peakLI,peakLIse,peak_latcat,mean_left_flow,mean_right_flow,mean_words,myse_mean,my_li_mean_even,my_li_mean_odd)
 
 #identify cases to exclude because of less than 12 trials on doppler
 w <- c(which(data.short$n_trials < 12), which(is.na(data.short$n_trials)))
@@ -194,7 +195,7 @@ colnames(doubledata)[w1[2]:ncol(doubledata)] <-
   Nexcluded <- Nexcluded / 2
 
 #remove unwanted columns
-doubledata <- dplyr::select(doubledata,record_id, fam_id, age_at_test, female, zygosity, n_language_low , myinclude, twin, n_trials, lat_index, qhp_handedness , ehp_handedness , lang_probs, li_cat, ehp_write, peakLI,peak_latcat,myse_mean,doppexcl, mean_left_flow,mean_right_flow,mean_words,female2, n_language_low2, myinclude2, twin2, n_trials2, lat_index2, qhp_handedness2, ehp_handedness2, lang_probs2, li_cat2, ehp_write2, peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,mean_words2,myse_mean2,doppexcl2)
+doubledata <- dplyr::select(doubledata,record_id, fam_id, age_at_test, female, zygosity, n_language_low , myinclude, twin, n_trials, lat_index, qhp_handedness , ehp_handedness , lang_probs, li_cat, ehp_write, peakLI,peak_latcat,myse_mean,doppexcl, mean_left_flow,mean_right_flow,mean_words,my_li_mean_even,my_li_mean_odd,female2, n_language_low2, myinclude2, twin2, n_trials2, lat_index2, qhp_handedness2, ehp_handedness2, lang_probs2, li_cat2, ehp_write2, peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,mean_words2,my_li_mean_even,my_li_mean_odd,myse_mean2,doppexcl2)
 #make column where all DZ are 2 and all MZ are 1
 doubledata$MZDZ <- 1
 doubledata$MZDZ[doubledata$zygosity > 1] <- 2
@@ -606,8 +607,10 @@ h2 <- makehistos(mytitle)
 ```{r LIplot, echo=FALSE}
 w <- which(doubledata$doppout == 1) #rather than using doubledata2, we just create column which
   #turns LIs to NA for those with too few trials
-  doubledata$lat_index[w] <- NA #this removes outlier value
+  doubledata$lat_index[w] <- NA 
   doubledata$lat_index2[w] <- NA
+  doubledata$peakLI[w]<-NA
+  doubledata$peakLI2[w] <- NA
   
   #compute spearman correlation using function and assemble into string
   doubledata$thisx <- doubledata$lat_index
@@ -1147,7 +1150,7 @@ nupairnum<-sample(1000, npairs, replace = FALSE)
 doubledata$rand_id[1:npairs]<-paste0(nupairnum,'A')
 doubledata$rand_id[(npairs+1):(2*npairs)]<-paste0(nupairnum,'B')
 doubledata$fam_randid<-rep(nupairnum,2)
-dataforOSF<-dplyr::select(doubledata,c(rand_id,fam_randid,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials,lat_index,myse_mean,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_write,peakLI,peak_latcat,mean_left_flow,mean_right_flow,Lflow.resid,Rflow.resid,mean_words,doppexcl,female2,n_language_low2,myinclude2,twin2,n_trials2,lat_index2,myse_mean2,qhp_handedness2,ehp_handedness2,lang_probs2,li_cat2,ehp_write2,peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,Lflow.resid2,Rflow.resid2,doppexcl2,MZDZ,langconcord,doppout,zygosex))
+dataforOSF<-dplyr::select(doubledata,c(rand_id,fam_randid,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials,lat_index,myse_mean,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_write,peakLI,peak_latcat,mean_left_flow,mean_right_flow,Lflow.resid,Rflow.resid,mean_words,doppexcl,female2,n_language_low2,myinclude2,twin2,n_trials2,lat_index2,myse_mean2,qhp_handedness2,ehp_handedness2,lang_probs2,li_cat2,ehp_write2,peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,Lflow.resid2,Rflow.resid2,doppexcl2,MZDZ,langconcord,doppout,zygosex,my_li_mean_even,my_li_mean_odd))
 dataforOSF$age_at_test<-round(dataforOSF$age_at_test/24,0) #age in 2 yr bands to improve anonymisation
 dataforOSF$age_at_test<-as.factor(dataforOSF$age_at_test)
 levels(dataforOSF$age_at_test)<-c('6_7','8_9','10_11','12_13')
@@ -1181,7 +1184,6 @@ q <- 1-p0
 n <- handLItab[2,1]+handLItab[2,2]
 zR<- (p0-pE)/sqrt(p0*q/n)
 ```
-
 
 *Table `r tabnum`: Extreme probands, t-tests comparing MZ/DZ co-twins*
 
@@ -1275,7 +1277,63 @@ Figure 2. Scatterplots by zygosity for handedness and language laterality indice
 
 
 ## Appendix 1
+```{r scattergram_peak.mean}
+#Requested by reviewer CM
+ 
+# classic plot :
+p <- ggplot(doubledata2, aes(x=lat_index, y=peakLI,color=as.factor(ehp_write))) +
+      geom_point(shape = 18 ) + 
+      labs(x = "Laterality index (mean)",y="Laterality index (peak)")+
+     labs(colour = "R handed")+
+      theme(legend.position="bottom")
+
+# marginal density
+p2 <- ggMarginal(p, type="density")
+ggsave("plots/peak_vs_meanLI.png",plot=p2,width=4,height=4,dpi=300)
+
+```
+![Scatterplot showing relationship between laterality index computed by mean difference in blood flow, versus peak difference in blood flow]plots/peak_vs_meanLI.png
+
+ 
+
 Multivariate twin analysis
+
+```{r batesmultiflow,echo=FALSE, include=FALSE} 
+#Multivariate with both flow measures - just curious
+#Not included in paper: 
+#Impression is you can get reasonable fit with either AE or CE, but you can't drop both
+multivar<-1
+if(multivar==1){
+  umx_set_auto_plot(TRUE)
+  #reformat data to fit umx format
+mytemp<-dplyr::select(doubledata2,mean_left_flow,mean_right_flow,mean_left_flow2,mean_right_flow2,MZDZ)
+colnames(mytemp)[1:4]<-c('Lflow_1','Rflow_1','Lflow_2','Rflow_2')
+mzData<-filter(mytemp,MZDZ==1)
+dzData<-filter(mytemp,MZDZ==2)
+
+m1 = umxACE(selDVs = c("Lflow","Rflow"), sep="_", mzData = mzData, dzData= dzData)
+summary(m1) #confirms that all C paths are either nonsignificant or negative!
+
+ m2 = umxModify(m1, regex = "c_r.c[1-2]", name="dropC_12", comparison= TRUE)
+ umxSummary(m2) #displays path diagram
+ summary(m2)
+ mxCompare(m1,m2) #gives p value of 1!  Dropping C for all 3 vars has no effect
+
+ #now drop A terms 
+ m3 = umxModify(m2, regex = "a_r.c[1-2]", name="dropA_12", comparison= TRUE)
+ umxSummary(m3) #displays path diagram 
+umxCompare(m2, m3)
+mxCompare(m2,m3) #p = .107, i.e. can drop A terms as well without sig loss of fit!
+
+#now drop A terms from m1
+ m4 = umxModify(m1, regex = "a_r.c[1-2]", name="dropA_12", comparison= TRUE)
+ umxSummary(m4) #displays path diagram 
+umxCompare(m1, m4)
+mxCompare(m1,m4) #p = .107, i.e. can drop A terms as well without sig loss of fit!
+}
+```
+
+
 
 
 ```{r sessinfo, include=FALSE}
