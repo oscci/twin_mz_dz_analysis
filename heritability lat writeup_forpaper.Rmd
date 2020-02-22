@@ -904,7 +904,7 @@ write.csv(uutable,'uutable.csv',sep='',row.names=F,col.names=T)
 
 ```{r batesmulti,echo=FALSE, include=FALSE}
 #Multivariate with both handedness measures
-#Not included in paper: less important than nonparametric
+#Not included in paper: but requested by reviewer and added in response
 multivar<-1
 if(multivar==1){
   umx_set_auto_plot(TRUE)
@@ -915,20 +915,56 @@ mzData<-filter(mytemp,MZDZ==1)
 dzData<-filter(mytemp,MZDZ==2)
 
 m1 = umxACE(selDVs = c("EHP", "QHP","Lat_index"), sep="_", mzData = mzData, dzData= dzData)
-summary(m1) #confirms that all C paths are either nonsignificant or negative!
+summary(m1) #confirms that all C paths are zero
 
  m2 = umxModify(m1, regex = "c_r.c[1-3]", name="dropC_123", comparison= TRUE)
  umxSummary(m2) #displays path diagram
  summary(m2)
  mxCompare(m1,m2) #gives p value of 1!  Dropping C for all 3 vars has no effect
+write.csv(summary(m2)$parameters,'summarym2.csv')
 
  #now drop A terms 
- m3 = umxModify(m2, regex = "a_r.c[1-3]", name="dropA_123", comparison= TRUE)
- umxSummary(m3) #displays path diagram 
-umxCompare(m2, m3)
-mxCompare(m2,m3) #p = .107, i.e. can drop A terms as well without sig loss of fit!
-}
+#  m3 = umxModify(m2, regex = "a_r.c[1-3]", name="dropA_123", comparison= TRUE)
+#  umxSummary(m3) #displays path diagram 
+# umxCompare(m2, m3)
+# mxCompare(m2,m3) #p = .107, i.e. can drop A terms as well without sig loss of fit!
+# }
 
+#Extract parameters from model 2 for report. These need to be converted to standardized format.  Can check against the paths shown in the figure.
+
+# First find the sum of estimates for all paths leading to each measure.
+
+myparam <- summary(m2)$parameters
+myparam<-myparam[-(c(1:3)),]
+totsq<-c(0,0,0) #total sum squared estimates for each of the 3 measures
+totsq[1] <- sum(myparam$Estimate[myparam$row==1]^2)
+totsq[2] <- sum(myparam$Estimate[myparam$row==2]^2)
+totsq[3] <- sum(myparam$Estimate[myparam$row==3]^2)
+myparam$row<-as.numeric(myparam$row)
+myparam$col<-as.numeric(myparam$col)
+myparam$standardised<-NA
+for (i in 1:nrow(myparam)){
+myparam$standardised[i] <- sqrt(myparam$Estimate[i]^2/totsq[myparam$row[i]])
+}
+myparam$s.se<-myparam$Std.Error*myparam$standardised/myparam$Estimate
+
+#ensure sign is correct
+w<-which(myparam$Estimate<0)
+myparam$standardised[w]<--1*myparam$standardised[w]
+
+#Now put in a table
+multdf <- data.frame(matrix(ncol = 8, nrow = 6))
+names(multdf)<-c("Term", "Measure", "Estimate.EQL","SE.EQL","Estimate.QL","SE.QL","Estimate.L","SE.L")
+multdf$Term <-c('A','A','A','E','E','E')
+multdf$Measure <- c('EHI','QHP','LI','EHI','QHP','LI')
+multdf[,3]<-round(myparam$standardised[myparam$col==1],3)
+multdf[,4]<-abs(round(myparam$s.se[myparam$col==1],3))
+multdf[c(2,3,5,6),5]<-round(myparam$standardised[myparam$col==2],3)
+multdf[c(2,3,5,6),6]<-abs(round(myparam$s.se[myparam$col==2],3))
+multdf[c(3,6),7]<-round(myparam$standardised[myparam$col==3],3)
+multdf[c(3,6),8]<-abs(round(myparam$s.se[myparam$col==3],3))
+
+write.csv(multdf,'multdftab.csv')
 ```
 
 
