@@ -2,7 +2,7 @@
 title: "Heritability of language laterality assessed by functional transcranial
   Doppler ultrasound: a twin study"
 author: "Dorothy V M Bishop and Timothy C Bates"
-date: "15th October 2019"
+date: "23rd February 2020"
 output:
   
   html_document:
@@ -66,13 +66,11 @@ loaded via a namespace (and not attached):
 ```{r setup,  include=FALSE, echo=FALSE}
 # most recent version 
 # Sat Jan 25 09:57:13 2020 ------------------------------
-
 #---------------------------------------------------------------
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 #install.OpenMx("travis") #latest OpenMx if not already installed
 #Needs OpenMx, which you get with following command (not CRAN)
 #Hmm - having problems with OpenMx - now using Cran version
-
 #source('https://openmx.ssri.psu.edu/software/getOpenMx.R')
 require(yarrr)
 require(stargazer) #Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
@@ -88,16 +86,13 @@ require(officer)
 require(umx)
 require(RVAideMemoire) #for bootstrapped CIs on Spearman correlations
 require(ggExtra) #for scatterplot with marginals
-
 #include = FALSE prevents code and results from appearing in the finished file. R Markdown still runs the code in the chunk, and the results can be used by other chunks. 
 #echo = FALSE prevents code, but not the results from appearing in the finished file.
-
 source('http://ibg.colorado.edu/cdrom2016/verhulst/Power/powerFun.R')
 #see http://www.people.vcu.edu/~bverhulst/power/powerScript.R
 #mxOption(NULL, 'Default optimizer', 'NPSOL') #?? this gets 'could not find function mxOption'
-
 tabnum <- 0 #keeps track of table numbers.
-readprocessed <- 0 #if set to one, read processed data from OSF.
+readprocessed <- 1 #if set to one, read processed data from OSF.
 # If zero, recreates processed data file. 
 # NB This option (0) will not work for external users, as it requires access to files with confidential data.
 #---------------------------------------------------------------
@@ -191,7 +186,6 @@ if(readprocessed==0) {
   #Mean method gives more bilateral cases - I guess not surprising.
   
   #--------------------------------------------------------------------------------------
-
 }
 ```
 
@@ -201,9 +195,7 @@ if(readprocessed==0){
 #----------------------------------------------------------
 # Produce data frame of selected columns, called data.short
 #----------------------------------------------------------
-
 data.short<-dplyr::select(mydata,record_id,fam_id,age_at_test,female,zygosity,n_language_low,myinclude,twin,n_trials, lat_index,qhp_handedness,ehp_handedness,lang_probs,li_cat,ehp_handedness,qhp_handedness,ehp_write,peakLI,peakLIse,peak_latcat,mean_left_flow,mean_right_flow,mean_words,myse_mean,my_li_mean_even,my_li_mean_odd)
-
 #identify cases to exclude because of less than 12 trials on doppler
 w <- c(which(data.short$n_trials < 12), which(is.na(data.short$n_trials)))
 data.short$doppexcl <- 0
@@ -211,7 +203,6 @@ data.short$doppexcl[w] <- 1
 w <- which(data.short$ehp_write == 999)
 data.short$ehp_write[w] <- NA
 data.short$lang_probs[data.short$lang_probs > 1] <- 1 #recodes so all values > 1 are now 1
-
 #-------------------------------------------------------
 # Create double entry file with twin 1 and 2 aligned
 #NB this code needs redoing to cope with possibility of additional columns
@@ -226,7 +217,6 @@ nuorder1 <- c(seq(from = 1, to = nrec, by = 2), seq(from = 2, to = nrec, by =
 2))
 doubledata <- cbind(data.short[nuorder1, ], data.short[nuorder2, ])
 w1 <- which(colnames(doubledata) == 'record_id')
-
 colnames(doubledata)[w1[2]:ncol(doubledata)] <-
   paste0(colnames(doubledata)[1:(w1[2] - 1)], 2)
   #check all aligned
@@ -245,7 +235,6 @@ colnames(doubledata)[w1[2]:ncol(doubledata)] <-
   
 #unit of analysis is twin pair excluded, so need to divide by 2 as one row per twin
   Nexcluded <- Nexcluded / 2
-
 #remove unwanted columns
 doubledata <- dplyr::select(doubledata,record_id, fam_id, age_at_test, female, zygosity, n_language_low , myinclude, twin, n_trials, lat_index, qhp_handedness , ehp_handedness , lang_probs, li_cat, ehp_write, peakLI,peak_latcat,myse_mean,doppexcl, mean_left_flow,mean_right_flow,mean_words,my_li_mean_even,my_li_mean_odd,female2, n_language_low2, myinclude2, twin2, n_trials2, lat_index2, qhp_handedness2, ehp_handedness2, lang_probs2, li_cat2, ehp_write2, peakLI2,peak_latcat2,mean_left_flow2,mean_right_flow2,mean_words2,my_li_mean_even,my_li_mean_odd,myse_mean2,doppexcl2)
 #make column where all DZ are 2 and all MZ are 1
@@ -255,14 +244,12 @@ doubledata$MZDZ[doubledata$zygosity > 1] <- 2
 doubledata$doppout <- 0
 doubledata$doppout[doubledata$doppexcl == 1] <- 1
 doubledata$doppout[doubledata$doppexcl2 == 1] <- 1
-
 # Make langconcord column: this is just count of N twins with zero on lang_problems, else 1
 # This is not used for analysis but is reported in text
 doubledata$langconcord <- 0
 doubledata$langconcord[doubledata$lang_probs > 0] <- 1
 w <- which(doubledata$lang_probs2 > 0)
 doubledata$langconcord[w] <- 1 + doubledata$langconcord[w]
-
 }
 ```
 
@@ -275,7 +262,6 @@ if(readprocessed==1) {
   doubledata$fam_id <- doubledata$fam_randid #need fam_id variable at later stage
 }
 #-------------------------------------------------------------------------
-
 ```
 
 ```{r countconcordanttwins, echo=FALSE,include=FALSE}
@@ -291,7 +277,6 @@ slices <- conc.table[1, 2:3]
 lbls <- c('', '')
 pie(slices, labels = lbls, main = "Language concordance: \nIdentical twins")
 slices <- conc.table[2, 2:3]
-
 pie(slices, labels = lbls, main = "Language concordance: \nNonidentical twins")
 # Can view pie if wanted, but it's not used in the paper
 ```
@@ -303,25 +288,19 @@ pie(slices, labels = lbls, main = "Language concordance: \nNonidentical twins")
 doubledata$doppout <- doubledata$doppexcl + doubledata$doppexcl2
 w <- which(doubledata$doppout == 2)
 doubledata$doppout[w] <- 1
-
 #remove case of extreme LI, defined as +/-10
 w <- c(which(abs(doubledata$lat_index) > 12), which(abs(doubledata$lat_index2) >
 12))
 doubledata$doppout[w] <-1 #picks up case with LI of -21,which is more than 5 SD from mean!
 # There seems no good reason for this extreme score- data look clean
 # Nothing in this child's history to suggest abnormality. But LI is so extreme it is best removed.
-
 doubledata2 <- filter(doubledata, doppout < 1)
-
 # Unit of analysis is twin pair excluded, so need to divide by 2 as one row per twin
-
 Npairwithhand <- nrow(doubledata) / 2
 Npairwithdopp <- nrow(doubledata2) / 2
-
 #identify N dropped because too few trials
 w <- which(doubledata$n_trials < 12)
 nlowN <- length(unique(doubledata$fam_id[w])) #This number will be reported in text
-
 ```
 
 ```{r reliabcorrs}
@@ -335,7 +314,6 @@ nlowN <- length(unique(doubledata$fam_id[w])) #This number will be reported in t
   #check split half reliablity
   splithalfr <-
   cor(doubledata2$my_li_mean_even, doubledata2$my_li_mean_odd, use = 'pairwise.complete.obs')
-
 ```
 ## Abstract
 **Background** 
@@ -412,7 +390,6 @@ tab1f<-data.frame(tab1f)
 colnames(tab1f)<-c('All','With_fTCD')
 nr<-nrow(tab1f)
 tab1f[(nr+1),]<-colSums(tab1f)
-
 forflex<-c(levels(doubledata$zygosex),'Total')
 #stargazer(tab1f,type='text',title='Table 2: N twin pairs by zygosity and sex, whole sample and subset with fTCD',summary=FALSE)
 mycaption<-paste0('Table ',tabnum,': N twin pairs by zygosity and sex')
@@ -427,9 +404,7 @@ tab1f[,3]<-as.integer(tab1f[,3])
 ft1 <- flextable(tab1f)
 ft1 <- width(ft1, width = 1.75)
 ft1
-
 #--------------------------------------------------------------
-
 ```
 
 
@@ -476,7 +451,6 @@ Sections of this paragraph are copied from Wilson & Bishop, 2018. Ethical approv
 #Script for power analysis from Tim Bates
 smallN <- nrow(doubledata2) / 2 #N pairs for laterality index; n= 141
 bigN <- nrow(doubledata) / 2 #N pair for handedeness; n = 194
-
 tmp = umx_make_TwinData(
 nMZpairs = 2000,
 nDZpairs = 2000,
@@ -488,8 +462,6 @@ empirical = TRUE
 )
 mzData = subset(tmp, zygosity == "MZ") #did not work, but substituted 2 lines below
 dzData = subset(tmp, zygosity == "DZ")
-
-
 ace = umxACE(
 selDVs = "var",
 sep = "_T",
@@ -499,12 +471,9 @@ tryHard = "yes"
 )
 ae = umxModify(ace, "c_r1c1", name = "ae", tryHard = "yes")
 nullModel = umxModify(ae, "a_r1c1", name = "e", tryHard = "yes")
-
 #https://rdrr.io/cran/umx/man/power.ACE.test.html
-
 #I had to get power by trial and error with the command below.
 #We get to 80% power for aa of.215 with n = 139.
-
 #The n is the total N twin pairs, MZ+DZ
 thissize = .215 #use .185 for larger sample - with n = 189 this gives 80% power
 p <-
@@ -515,9 +484,7 @@ update = "a_after_dropping_c",
 power = .73,
 method = "ncp"
 )
-
 print(p)
-
 thissize = .333 #
 p <-
 power.ACE.test(
@@ -527,10 +494,7 @@ update = "a_after_dropping_c",
 power = .95,
 method = "ncp"
 )
-
 print(p)
-
-
 ```
 
 
@@ -589,13 +553,10 @@ makescatter <- function(mytitle,xpos,ypos,filetitle,vline,mylabeldf,mylabelbit){
     geom_hline(yintercept = vline,linetype="dashed") +
    annotate("text",label=mylabelbit[1], x = xpos[1],y = ypos[1],size=3)+
    annotate("text",label=mylabelbit[2], x = xpos[2],y = ypos[2],size=3)+
-
   
   ggsave(filetitle,width=3,height=3)
   return(g)
 }
-
-
 ```
 
 ```{r scatterplot,echo=FALSE, include=FALSE}
@@ -603,14 +564,10 @@ makescatter <- function(mytitle,xpos,ypos,filetitle,vline,mylabeldf,mylabelbit){
 #scatterplot and correlation by zygosity as MZ/DZ: do for LI and handedness measures
 #------------------------------------------------------------------------
 #Use the makescatter function defined above for all the plots
-
-
-
 doubledata$Zygosity <-
 as.factor(doubledata$MZDZ) #Initial caps for version that is factor with 2 values
 levels(doubledata$Zygosity) <- c('MZ', 'DZ')
 singlerows <- nrow(doubledata) / 2
-
 #EHI plot
 #compute spearman correlation using function and assemble into string
 doubledata$thisx <- doubledata$ehp_handedness
@@ -618,7 +575,6 @@ doubledata$thisy <- doubledata$ehp_handedness2
 thismz <- filter(doubledata, MZDZ == 1)
 thisdz <- filter(doubledata, MZDZ == 2)
 mylabelbit <- makespearman(thismz, thisdz)
-
 #add jitter to points before plotting
 myjitter <- rnorm(nrow(doubledata)) / 4.5 #need to add jitter to points for plotting
 doubledata$myx <- doubledata$ehp_handedness + myjitter
@@ -635,14 +591,12 @@ h1 <- makehistos(mytitle)
 
 ###########################################################################################
 ```{r QHPplot, echo=FALSE}
-
 #compute spearman correlation using function and assemble into string
 doubledata$thisx <- doubledata$qhp_handedness
 doubledata$thisy <- doubledata$qhp_handedness2
 thismz <- filter(doubledata, MZDZ == 1)
 thisdz <- filter(doubledata, MZDZ == 2)
 mylabelbit <- makespearman(thismz, thisdz)
-
 myjitter <- rnorm(nrow(doubledata)) / 4
 doubledata$myx <- doubledata$qhp_handedness + myjitter
 myjitter <- rnorm(nrow(doubledata)) / 4
@@ -680,7 +634,6 @@ w <- which(doubledata$doppout == 1) #rather than using doubledata2, we just crea
   g3 <-
   makescatter(mytitle, xpos, ypos, filetitle, vline, mylabeldf, mylabelbit)
   h3 <- makehistos(mytitle)
-
   #add histogram for peak measure, as requested by reviewers
   doubledata$thisx <- doubledata$peakLI
   doubledata$thisy <- doubledata$peakLI2
@@ -692,33 +645,27 @@ w <- which(doubledata$doppout == 1) #rather than using doubledata2, we just crea
   thismz <- filter(doubledata, MZDZ == 1)
   thisdz <- filter(doubledata, MZDZ == 2)
   mytitle <- 'Laterality Index (peak fTCD)'
-
 filetitle<-'LIplotpeak.png'
 vline=0
 h4<-makehistos(mytitle)
 ggsave("plots/peakLI.png",width=4,height=4,dpi=300)#save most recent plot
 ###########################################################################################
-
 ```
 
 ```{r combined plots, echo=FALSE,include=FALSE}
 # Make one big plot with each task in a panel. Save as EPS format.
 ggarrange(g1,g2,g3,ncol=1,nrow=3,common.legend = TRUE,heights=c(1,1,1))
 ggsave("plots/combined_plot.png",width=4,height=12,dpi=300)
-
 ggarrange(h1,h2,h3,ncol=1,nrow=3,common.legend = TRUE,heights=c(1,1,1))
 ggsave("plots/combined_densities.png",width=4,height=12,dpi=300)
-
 setEPS()
 postscript("plots/combined_plot.eps",width=4,height=12)
 ggarrange(g1,g2,g3,ncol=1,nrow=3,common.legend = TRUE,heights=c(1,1,1))
 dev.off()
-
 setEPS()
 postscript("plots/combined_densities.eps",width=4,height=12)
 ggarrange(h1,h2,h3,ncol=1,nrow=3,common.legend = TRUE,heights=c(1,1,1))
 dev.off()
-
 ```
 ## Results
 Figure 1 shows the distributions of scores obtained on the two handedness measures and the language laterality index from fTCD, and Figure 2 shows scatterplots depicting the association of the laterality indices between two members of a twin pair.
@@ -737,8 +684,6 @@ dopoly<-1
 if(dopoly==1){
 #AE model; try ordinal version for handedness.
 # Based on ibg.colorado.edu/cdrom2010/medland/wed_morning/wed_morning2010.pdf
-
-
 #use double-entry file ? otherwise problems if null value for one category
 myehp<-dplyr::select(doubledata,MZDZ,ehp_handedness,ehp_handedness2)
 npair<-nrow(myehp)
@@ -750,7 +695,6 @@ Emypoly.mz<-polychoric(mypolytab.mz)$rho
 Emypoly.dz<-polychoric(mypolytab.dz)$rho
 print('Polychoric correlations MZ/DZ (rho)')
 print(c(Emypoly.mz,Emypoly.dz))
-
 #QHP has too many values for computing polychoric, so reduced to broader categories by dividing by 4.
 #This is arbitrary - choice of divisor does make a slight difference
 myqhp<-dplyr::select(doubledata,MZDZ,qhp_handedness,qhp_handedness2)
@@ -763,7 +707,6 @@ Qmypoly.mz<-polychoric(mypolytab.mz)$rho
 Qmypoly.dz<-polychoric(mypolytab.dz)$rho
 Qmypoly.mz
 Qmypoly.dz
-
 }
 ```
 Figure 2 shows that the correlations between two members of a twin pair are low for all measures.
@@ -793,7 +736,6 @@ hist(doubledata$lat_index,breaks=20)
 ```
 ```{r createvars}
 #A bit more data wrangling to create measures that are suggested by reviewer comments
-
 #We'll compare with Somers et al, so define a binary category from the peak LI
 doubledata$peakcatbinary <- doubledata$peak_latcat
 w <- which(doubledata$peakcatbinary < 0)
@@ -801,10 +743,6 @@ doubledata$peakcatbinary[w] <- 0 #combines bilateral and R
 doubledata$peakcatbinary2 <- doubledata$peak_latcat2
 w <- which(doubledata$peakcatbinary2 < 0)
 doubledata$peakcatbinary2[w] <- 0 #combines bilateral and R
-
-
-
-
 ```
 ```{r AEmodel, echo=FALSE}
 #---------------------------------------------------------------
@@ -867,22 +805,16 @@ write.csv(aatable,'aatable.csv',sep='',row.names=F,col.names=T)
 ```{r batesunivariate, echo=FALSE, include=FALSE}
 #Including formatting into a nice table with everything in it
 # uutable includes bootstrapped confidence intervals
-
 # NB these aren't computed for the flow measures, as the AE model is not suitable for these!
 # Flow measures look as if they have influence of CE, so this is computed for them!
-
 mycols<-c("ehp_handedness", "qhp_handedness", "lat_index","peakLI","peakcatbinary","mean_left_flow","mean_right_flow")
 mycolnames<-c("Edinburgh Handedness Inventory","Quantification of Hand Preference","Laterality index (fTCD)","Laterality index (peak FTCD)", "Binary typical (1)/atypical (0)","Mean flow L","Mean flow R")
-
 uutable<-data.frame(matrix(NA,nrow=(length(mycols)),ncol=10))
 colnames(uutable)<-c('Measure','N MZ pair','N DZ pair','rMZ','rDZ','a2','chisq','p','RMSEA')
 #NB 95CI will be done from bootstrap_CI.Rmd
-
 umx_set_auto_plot(FALSE) #turn off the umx plots
 #umx gives v slightly different estimates of a2 than the standard ACE above.
 #I am using the OpenMx versions 
-
-
 df = doubledata # for ease of typing
 #create new columns, X_T1 and X_T2, which are recycled for each measure
 for (j in 1:length(mycols)){
@@ -896,10 +828,8 @@ for (j in 1:length(mycols)){
   name2<-paste0(mycols[j],'2') #repeat for twin 2
    col2<-which(names(df)==name2)
   df$X_T2 <-df[,col2]
-
 mzData = subset(df, MZDZ==1)
 dzData = subset(df, MZDZ==2)
-
 #Populate first cols of uutable
 thisrow<-j
 uutable$Measure[thisrow] <- mycolnames[j]
@@ -909,7 +839,6 @@ sp.m<-spearman.ci(mzData$X_T1, mzData$X_T2, nrep = 1000, conf.level = 0.95)
 uutable$rMZ[thisrow] <- paste0(round(sp.m$estimate,2)," (",round(sp.m$conf.int[1],2),' to ',round(sp.m$conf.int[2],2),')')
 sp.d<-spearman.ci(dzData$X_T1, dzData$X_T2, nrep = 1000, conf.level = 0.95)
 uutable$rDZ[thisrow] <- paste0(round(sp.d$estimate,2)," (",round(sp.d$conf.int[1],2),' to ',round(sp.d$conf.int[2],2),')')
-
 # Test for genetic influence 
 m1 = umxACE("EHP", selDVs = "X", sep="_T", mzData = mzData, dzData= dzData)
 m2 = umxModify(m1, "c_r1c1", name="ae", comparison= TRUE)
@@ -921,12 +850,10 @@ if(j>5){
   mycomp<-umxCompare(m4, m3) #CE model for the flow measures
 summ<-summary(m4)
 }
-
 #compute a2 as proportion of variance from raw estimates
 a2<-summ$parameters$Estimate[2]^2/(summ$parameters$Estimate[2]^2+summ$parameters$Estimate[3]^2)
 if (sp.d$estimate>sp.m$estimate){a2<-a2*-1}
 uutable$a2[thisrow]<-round(a2,2)
-
 #add chi sq for comparison with model 3
 uutable$chisq[thisrow]<-round(mycomp$`∆ -2LL`[2],1)
 uutable$p[thisrow]<-mycomp$p[2]
@@ -947,11 +874,7 @@ myCI<-(paste(round(q3,2),' to ',round(q4,2)))
 uutable$a2[j]<-paste0(uutable$a2[j],"(",myCI,")")
 }
 }
-
 #write.csv(uutable,'uutable.csv',sep='',row.names=F,col.names=T)
-
-
-
 ```
 
 ```{r batesmulti,echo=FALSE, include=FALSE}
@@ -965,27 +888,21 @@ mytemp<-dplyr::select(doubledata2,ehp_handedness,qhp_handedness,lat_index,ehp_ha
 colnames(mytemp)[1:6]<-c('EHP_1','QHP_1','Lat_index_1','EHP_2','QHP_2','Lat_index_2')
 mzData<-filter(mytemp,MZDZ==1)
 dzData<-filter(mytemp,MZDZ==2)
-
 m1 = umxACE(selDVs = c("EHP", "QHP","Lat_index"), sep="_", mzData = mzData, dzData= dzData)
 summary(m1) #confirms that all C paths are zero
-
  m2 = umxModify(m1, regex = "c_r.c[1-3]", name="dropC_123", comparison= TRUE)
  umxSummary(m2) #displays path diagram
  summary(m2)
  mxCompare(m1,m2) #gives p value of 1!  Dropping C for all 3 vars has no effect
 write.csv(summary(m2)$parameters,'summarym2.csv')
-
  #now drop A terms 
 #  m3 = umxModify(m2, regex = "a_r.c[1-3]", name="dropA_123", comparison= TRUE)
 #  umxSummary(m3) #displays path diagram 
 # umxCompare(m2, m3)
 # mxCompare(m2,m3) #p = .107, i.e. can drop A terms as well without sig loss of fit!
 # }
-
 #Extract parameters from model 2 for report. These need to be converted to standardized format.  Can check against the paths shown in the figure.
-
 # First find the sum of estimates for all paths leading to each measure.
-
 myparam <- summary(m2)$parameters
 myparam<-myparam[-(c(1:3)),]
 totsq<-c(0,0,0) #total sum squared estimates for each of the 3 measures
@@ -999,11 +916,9 @@ for (i in 1:nrow(myparam)){
 myparam$standardised[i] <- sqrt(myparam$Estimate[i]^2/totsq[myparam$row[i]])
 }
 myparam$s.se<-myparam$Std.Error*myparam$standardised/myparam$Estimate
-
 #ensure sign is correct
 w<-which(myparam$Estimate<0)
 myparam$standardised[w]<--1*myparam$standardised[w]
-
 #Now put in a table
 multdf <- data.frame(matrix(ncol = 8, nrow = 6))
 names(multdf)<-c("Term", "Measure", "Estimate.EQL","SE.EQL","Estimate.QL","SE.QL","Estimate.L","SE.L")
@@ -1015,7 +930,6 @@ multdf[c(2,3,5,6),5]<-round(myparam$standardised[myparam$col==2],3)
 multdf[c(2,3,5,6),6]<-abs(round(myparam$s.se[myparam$col==2],3))
 multdf[c(3,6),7]<-round(myparam$standardised[myparam$col==3],3)
 multdf[c(3,6),8]<-abs(round(myparam$s.se[myparam$col==3],3))
-
 write.csv(multdf,'multdftab.csv')
 }
 ```
@@ -1024,19 +938,15 @@ write.csv(multdf,'multdftab.csv')
 The OpenMx package was used to run an AE model with the data from the two handedness tasks and the language laterality task. It was anticipated that the model would not fit with the data because (a) the handedness data were highly non-normal, and (b) the correlations for the language laterality index were close to zero. However, a good fit was obtained for all three measures.  Heritability estimates for the two handedness measures were compatible with those obtained in previous studies, with values of a^2^ of `r uutable[1,6]` for the Edinburgh Handedness Inventory and `r uutable[2,6]` for the Quantification of Hand Preference task. The fit of a model including a genetic term was substantially better than for one excluding it for both tasks (p-values less than .01 for both measures). For the language laterality index, the estimated value of a^2^ was zero, and a model with no genetic term gave as good a fit as one including it (all RMSEA values equal to zero). The same was true for both the laterality index based on the traditional peak method, and for the binary category of typical/atypical laterality that was comparable to that used by Somers et al (2015).
 
 ```{r OpenMXoutputs, echo=FALSE}
-
 #stargazer(aatable,type='text',title='Table 3: Heritability estimates from AE model for different measures: ignoring nonnormality',summary=FALSE)
 tabnum<-tabnum+1
-
 mycaption<-paste0('Table ',tabnum,': Heritability estimates from AE model for different measures: ignoring nonnormality')
 #aatable %>% kable(booktabs = T, caption = mycaption) %>% 
 #  kable_styling()
-
 ft <-flextable(data = uutable[1:5,1:9])
   
 ft <-width(ft, j=1,width = 2.5) #sets width of column j to 2.5 inches
 ft
-
 #NB all tasks have been scaled; skew in the handedness measures has not been accounted for
 ```
 
@@ -1056,15 +966,11 @@ colnames(for.umx)<-c('zygo','hand1','hand2')
 for.umx$hand1<-as.factor(for.umx$hand1)
 for.umx$hand2<-as.factor(for.umx$hand2)
 nlevels<-nlevels(for.umx$hand1)
-
 for.umx<-for.umx[1:(mynrow/2),] #make single entry
-
 ordDVs = c("hand1", "hand2")
 selDVs = c("hand")
 # Make the ordinal variables into mxFactors (ensure ordered is TRUE, and require levels)
-
 for.umx[, ordDVs] <- mxFactor(for.umx[, ordDVs], levels = c(0:nlevels))
-
 mzData <- for.umx[for.umx$zygo ==1, ]
 dzData <- for.umx[for.umx$zygo ==2, ]
 m1 = umxACE(selDVs = selDVs, dzData = dzData, mzData = mzData, sep = '')
@@ -1072,15 +978,12 @@ m2 = umxModify(m1, update="c_r1c1",name = "drop_C")
 m3 = umxModify(m2, "a_r1c1", name="drop_E", comparison= TRUE)
 umxCompare(m2, m3)
 umxSummary(m2)
-
 umxSummary(m2,showEstimates='std',SE=TRUE,report='markdown',RMSEA_CI=TRUE)
 aSE<-m2$output$standardErrors[nlevels] #nlevels does identify the correct row here
 Qa<-m2$output$estimate[nlevels]
 QlowCI<-(Qa-1.96*aSE)
 QhiCI<-(Qa+1.96*aSE)
 umxresult<-as.data.frame(c(Qa,aSE,QlowCI,QhiCI,Qa^2))
-
-
 return(umxresult)
 }
 ```
@@ -1099,11 +1002,8 @@ for (i in 1:2){
    }
   col1<-which(colnames(doubledata)==mycolname)
   col2<-which(colnames(doubledata)==paste0(mycolname,'2'))
-
 umxresult[,i]<-doumx(col1,col2)
-
 }
-
 ```
 Because of concerns that the non-normality of the handedness data could distort heritability estimates, analyses of the EHI and QHP were repeated using the umx package (Bates, 2018) to run an ordinal version of ACE analysis. This gave slightly different estimates of heritability than  the standard analysis using the AE model, with values of a^2^ of `r round(umxresult[5,1],2)` and `r round(umxresult[5,2],2)` for EHI and QHP respectively, and c^2^ close to zero.   
 
@@ -1114,7 +1014,6 @@ dftable <- data.frame(matrix(nrow = 3, ncol = 10))
 colnames(dftable)<-c('Measure','N MZ','N DZ','MZ proband mean (SD)','DZ proband mean (SD)',
                      'MZ co-twin mean (SD)','DZ co-twin mean (SD)','t','df','p')
 dftable[,1]<-aatable[3,1] #names of measures
-
 # T-tests as for DeFries Fulker analysis
 Ecutoff<-6
 Elefties<-filter(doubledata,ehp_handedness<Ecutoff)
@@ -1126,7 +1025,6 @@ aggmeans <-aggregate(Elefties$ehp_handedness, by=list(Elefties$MZDZ),
   FUN=mean, na.rm=TRUE)
 aggsds <-aggregate(Elefties$ehp_handedness, by=list(Elefties$MZDZ),
   FUN=sd, na.rm=TRUE)
-
 dftable[1,4]<-paste0(round(aggmeans[1,2],2)," (",round(aggsds[1,2],2),")")
 dftable[1,5]<-paste0(round(aggmeans[2,2],2)," (",round(aggsds[2,2],2),")")
 aggmeans <-aggregate(Elefties$ehp_handedness2, by=list(Elefties$MZDZ),
@@ -1138,7 +1036,6 @@ dftable[1,7]<-paste0(round(aggmeans[2,2],2)," (",round(aggsds[2,2],2),")")
 dftable[1,8]<-round(myt$statistic,2)
 dftable[1,9]<-round(myt$parameter,1)
 dftable[1,10]<-round(myt$p.value,3)
-
 Qcutoff<-11
 Qlefties<-filter(doubledata,qhp_handedness<Qcutoff)
 thisrow<-2
@@ -1150,7 +1047,6 @@ aggmeans <-aggregate(Qlefties$qhp_handedness, by=list(Qlefties$MZDZ),
   FUN=mean, na.rm=TRUE)
 aggsds <-aggregate(Qlefties$ehp_handedness, by=list(Qlefties$MZDZ),
   FUN=sd, na.rm=TRUE)
-
 dftable[thisrow,4]<-paste0(round(aggmeans[1,2],2)," (",round(aggsds[1,2],2),")")
 dftable[thisrow,5]<-paste0(round(aggmeans[2,2],2)," (",round(aggsds[2,2],2),")")
 aggmeans <-aggregate(Qlefties$qhp_handedness2, by=list(Qlefties$MZDZ),
@@ -1162,7 +1058,6 @@ dftable[thisrow,7]<-paste0(round(aggmeans[2,2],2)," (",round(aggsds[2,2],2),")")
 dftable[thisrow,8]<-round(myt$statistic,2)
 dftable[thisrow,9]<-round(myt$parameter,1)
 dftable[thisrow,10]<-round(myt$p.value,3)
-
 LIcutoff<-0
 Drighties<-filter(doubledata,lat_index<LIcutoff)
 thisrow<-3
@@ -1174,7 +1069,6 @@ aggmeans <-aggregate(Drighties$lat_index, by=list(Drighties$MZDZ),
   FUN=mean, na.rm=TRUE)
 aggsds <-aggregate(Drighties$ehp_handedness, by=list(Drighties$MZDZ),
   FUN=sd, na.rm=TRUE)
-
 dftable[thisrow,4]<-paste0(round(aggmeans[1,2],2)," (",round(aggsds[1,2],2),")")
 dftable[thisrow,5]<-paste0(round(aggmeans[2,2],2)," (",round(aggsds[2,2],2),")")
 aggmeans <-aggregate(Drighties$lat_index2, by=list(Drighties$MZDZ),
@@ -1186,7 +1080,6 @@ dftable[thisrow,7]<-paste0(round(aggmeans[2,2],2)," (",round(aggsds[2,2],2),")")
 dftable[thisrow,8]<-round(myt$statistic,2)
 dftable[thisrow,9]<-round(myt$parameter,1)
 dftable[thisrow,10]<-round(myt$p.value,3)
-
 #just for interest: try regression analysis with probands selected by R sided language
 Dcat<-filter(doubledata,li_cat>2)
 dfreg1<-lm(Dcat$lat_index2~Dcat$lat_index*Dcat$MZDZ)
@@ -1201,7 +1094,6 @@ mycaption<-paste0('Table ',tabnum,': Extreme probands, t-tests comparing MZ/DZ c
 tdftable<-data.frame(t(dftable))
 colnames(tdftable)<-c('Edinburgh Handedness','QHP','Language LI')
 tdftable<-tdftable[-1,] #top row will now be header
-
 rowvec<-rownames(tdftable)
 tdftable<-cbind(rowvec,tdftable)
 colnames(tdftable)[1]<-' '
@@ -1220,7 +1112,6 @@ doubledata$Lflow.resid<-doubledata$mean_left_flow -(mylm$coefficients[1,1]+
 doubledata$Lflow.resid2<-doubledata$mean_left_flow2 -(mylm$coefficients[1,1]+
                                                         mylm$coefficients[2,1]*doubledata$age_at_test+
                                                         mylm$coefficients[3,1]*doubledata$female)
-
 mylm2 <- summary(lm(doubledata$mean_right_flow ~ doubledata$age_at_test+doubledata$female+doubledata$mean_words))
 doubledata$Rflow.resid<-doubledata$mean_right_flow -(mylm2$coefficients[1,1]+
                                                        mylm2$coefficients[2,1]*doubledata$age_at_test+
@@ -1255,7 +1146,6 @@ doubledata2$binaryLI <-0
 doubledata2$binaryLI[doubledata2$lat_index>0]<-1
 peakhandLItab <-table(doubledata2$peakbinaryLI,doubledata2$ehp_write)
 peakphandLItab <-prop.table(peakhandLItab, 2) # row percentages 
-
 handLItab <-table(doubledata2$binaryLI,doubledata2$ehp_write)
 phandLItab <-prop.table(handLItab, 2) # row percentages
 #proportion test against Carey figures
@@ -1265,7 +1155,6 @@ pE <- .67
 q <- 1-p0
 n <- handLItab[1,1]+handLItab[2,1]
 zL<- (p0-pE)/sqrt(p0*q/n)
-
 #R handers
 p0 <- phandLItab[2,2]
 pE <- .91
@@ -1375,11 +1264,9 @@ p <- ggplot(doubledata2, aes(x=lat_index, y=peakLI,color=as.factor(ehp_write))) 
       labs(x = "Laterality index (mean)",y="Laterality index (peak)")+
      labs(colour = "R handed")+
       theme(legend.position="bottom")
-
 # marginal density
 p2 <- ggMarginal(p, type="density")
 ggsave("plots/peak_vs_meanLI.png",plot=p2,width=4,height=4,dpi=300)
-
 ```
 ![Scatterplot showing relationship between laterality index computed by mean difference in blood flow, versus peak difference in blood flow]plots/peak_vs_meanLI.png
 
