@@ -809,6 +809,8 @@ write.csv(aatable,'aatable.csv',sep='',row.names=F,col.names=T)
 # Flow measures look as if they have influence of CE, so this is computed for them!
 mycols<-c("ehp_handedness", "qhp_handedness", "lat_index","peakLI","peakcatbinary","mean_left_flow","mean_right_flow")
 mycolnames<-c("Edinburgh Handedness Inventory","Quantification of Hand Preference","Laterality index (fTCD)","Laterality index (peak FTCD)", "Binary typical (1)/atypical (0)","Mean flow L","Mean flow R")
+osfnames <-c ('xhwgz','xtq9f','5m3pv','7tnk6','dvqka','3wxhn','gqckj')
+#these are references that point to large files for bootstrapped estimates for the different laterality indices
 uutable<-data.frame(matrix(NA,nrow=(length(mycols)),ncol=10))
 colnames(uutable)<-c('Measure','N MZ pair','N DZ pair','rMZ','rDZ','a2','chisq','p','RMSEA')
 #NB 95CI will be done from bootstrap_CI.Rmd
@@ -862,11 +864,11 @@ if(j<6){
 #add bootstrapped CI computed with bootstrap_ci.Rmd
   
   #########################################################################
-  #need to specify directory to find bootstrapped estimates in filepath
+  #need to specify OSF path to find bootstrapped estimates 
   #########################################################################
   
-bootfile<-paste0("bootstrap_estimates/",mycols[j],'_bootstraps_umx_5000.csv')
-myboots<-read.csv(bootfile,stringsAsFactors=F)
+bootfile<-paste0('https://osf.io/',osfnames[j],'/download')
+myboots<-read.csv(bootfile)
 goodresults<-myboots[myboots$infoDefinite==T,]
 q3<-quantile(goodresults$apropall,.05)
 q4<-quantile(goodresults$apropall,.95)
