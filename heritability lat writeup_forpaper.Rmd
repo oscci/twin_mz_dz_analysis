@@ -88,7 +88,8 @@ require(RVAideMemoire) #for bootstrapped CIs on Spearman correlations
 require(ggExtra) #for scatterplot with marginals
 #include = FALSE prevents code and results from appearing in the finished file. R Markdown still runs the code in the chunk, and the results can be used by other chunks. 
 #echo = FALSE prevents code, but not the results from appearing in the finished file.
-source('http://ibg.colorado.edu/cdrom2016/verhulst/Power/powerFun.R')
+#Had planned to use powerFun from Verhulst, but can't get this to run
+#source('http://ibg.colorado.edu/cdrom2016/verhulst/Power/powerFun.R')
 #see http://www.people.vcu.edu/~bverhulst/power/powerScript.R
 #mxOption(NULL, 'Default optimizer', 'NPSOL') #?? this gets 'could not find function mxOption'
 tabnum <- 0 #keeps track of table numbers.

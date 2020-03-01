@@ -1,0 +1,52 @@
+---
+title: "power_rmd"
+author: "DVM Bishop"
+date: "01/03/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(umx)
+```
+
+Double checking power calculations, after query by Guy Vingerhoets.
+
+Using script from https://cran.r-project.org/web/packages/umx/index.html, see p 23.
+
+Ideally, I'd like to make a table from the output, but it is frustratingly hard to find out how to access the values that are created, so it's currently just a long dump into a text file.
+
+NOTE: the value of AA entered into this function is proportion of variance explained by genetic factors in AE model (after dropping c), i.e equivalent to standardized a^2.
+
+```{r powerACE}
+myAA<-c(.1,.15,.2,.25,.3,.35) #values of a2 to test
+twins1<-c(96,98) #N MZ/DZ twin pairs, EHI
+twins2<-c(65,76) #N twin pairs, LI
+
+
+for (i in 1:6){
+  for (mypower in seq(.6,.9,.05)){
+  print(paste0('power = ',mypower))
+  thisAA<-myAA[i]
+   print(paste0('AA = ',thisAA))
+
+thispower<-power.ACE.test(
+AA = thisAA,
+CC = 0,
+EE = NULL,
+update = c("a_after_dropping_c"),
+value = 0,
+n = NULL,
+MZ_DZ_ratio = 1,
+sig.level = 0.05,
+power =mypower,
+method = c("ncp"),
+search = FALSE,
+tryHard = c("yes"),
+optimizer = NULL,
+nSim = 4000
+)
+  }
+}
+
+```
