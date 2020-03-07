@@ -2,13 +2,13 @@
 title: "Heritability of language laterality assessed by functional transcranial
   Doppler ultrasound: a twin study"
 author: "Dorothy V M Bishop and Timothy C Bates"
-date: "23rd February 2020"
+date: "7th March 2020"
 output:
   
+  word_document: default
+  pdf_document: default
   html_document:
     df_print: paged
-  pdf_document: default
-  word_document: default
 ---
 
 ### sessionInfo()
@@ -448,54 +448,54 @@ Sections of this paragraph are copied from Wilson & Bishop, 2018. Ethical approv
 
 
 
-```{r batespower, echo=FALSE, include=FALSE}
-#Script for power analysis from Tim Bates
-smallN <- nrow(doubledata2) / 2 #N pairs for laterality index; n= 141
-bigN <- nrow(doubledata) / 2 #N pair for handedeness; n = 194
-tmp = umx_make_TwinData(
-nMZpairs = 2000,
-nDZpairs = 2000,
-AA = .25,
-CC = 0,
-varNames = "var",
-mean = 0,
-empirical = TRUE
-)
-mzData = subset(tmp, zygosity == "MZ") #did not work, but substituted 2 lines below
-dzData = subset(tmp, zygosity == "DZ")
-ace = umxACE(
-selDVs = "var",
-sep = "_T",
-mzData = mzData,
-dzData = dzData,
-tryHard = "yes"
-)
-ae = umxModify(ace, "c_r1c1", name = "ae", tryHard = "yes")
-nullModel = umxModify(ae, "a_r1c1", name = "e", tryHard = "yes")
-#https://rdrr.io/cran/umx/man/power.ACE.test.html
-#I had to get power by trial and error with the command below.
-#We get to 80% power for aa of.215 with n = 139.
-#The n is the total N twin pairs, MZ+DZ
-thissize = .215 #use .185 for larger sample - with n = 189 this gives 80% power
-p <-
-power.ACE.test(
-AA = thissize,
-CC = 0,
-update = "a_after_dropping_c",
-power = .73,
-method = "ncp"
-)
-print(p)
-thissize = .333 #
-p <-
-power.ACE.test(
-AA = thissize,
-CC = 0,
-update = "a_after_dropping_c",
-power = .95,
-method = "ncp"
-)
-print(p)
+```{r powerplot, echo=FALSE, include=FALSE}
+require(umx)
+# Double checked power calculations
+# Using script from https://cran.r-project.org/web/packages/umx/index.html, see p 23.
+
+# NOTE: the value of AA entered into this function is proportion of variance explained by
+# genetic factors in AE model (after dropping c), i.e equivalent to standardized a^2.
+# Our sample Ns are:
+# twins1   = c(96, 98) # N MZ/DZ twin pairs, EHI, total = 194
+# twins2   = c(65, 76) # N twin pairs, LI, total = 141
+
+
+# ==========================================================================================
+#  Make vectors of a^2 and loop over these to build an ncp-based table of Ns =
+# ==========================================================================================
+
+myAA     = seq(.15,.35,.025) # values of a^2 to test 
+j=0
+for (i in 1:length(myAA)){
+   thisAA = myAA[i]
+   print(paste0('AA = ', thisAA))
+    thispower = power.ACE.test(AA = thisAA, CC = 0, update = c("a_after_dropping_c"), 
+                               method = "ncp", tryHard = "yes",search=TRUE)
+     thispower$lower<-thisAA  #repurposing this column to hold thisAA - it will be renamed later
+   if (i==1){
+      bigpower <- thispower
+    }
+    if (i>1){
+      bigpower<-rbind(bigpower,thispower) #create long file with all heritaiblity values
+    }
+}
+colnames(bigpower)[2:3]<-c('Power','Heritability')
+# The n reported with thispower is total n pairs, MZ and DZ combined
+bigpower$Heritability<-as.factor(bigpower$Heritability)
+p <- ggplot(data=bigpower, aes(x=N, y=Power, group=Heritability)) +
+  geom_line((aes(color=Heritability))) +
+  xlim(0,600)+
+  ylim(.6,.95)
+#add dotted lines to show sample sizes for 2 measures
+gplot<-p +  xlab("Total N twin pairs") +
+  geom_vline(xintercept = 141,linetype='dashed')+
+    geom_vline(xintercept = 194,linetype='dotdash')
+filename<-'plots/powerplot'
+ggsave(paste(filename, '.pdf', sep=""), gplot, width = 6, height = 3)
+postscript(file = paste(filename, '.eps', sep=""), width = 6, height = 3)
+print(gplot)
+ dev.off()
+
 ```
 
 
@@ -507,7 +507,9 @@ As noted above, the usual approach to twin analysis involves decomposing varianc
 
 2. Power analysis  
 
-A power analysis was conducted to estimate the power to detect heritability of .2 or more, using the power.ACE.test function in OpenMx. This showed that for the larger sample of twins for whom handedness data were available, there is 85% power to detect heritability of .2 in an AE model with alpha of .05, and for the smaller sample with language laterality data, power of 73%. In this smaller subset with language laterality data, 80% power is obtained for heritability of .215, and over 95% power for heritability of .33. Thus even the low heritability handedness estimates reviewed in the Introduction should be detectable with this sample. For language laterality, there is around a 3 in 4 chance of detecting a true but small effect of around .2, and strong power to detect the higher heritability reported in the DTI study by Jahanshad et al (2010).
+A power analysis was conducted to estimate the power to detect heritability of 0.15 or more, using the power.ACE.test function in umx (see Figure 1).  This showed that for the larger sample of twins for whom handedness data were available, there is 80% power to detect heritability of 0.25 in an AE model with alpha of 0.05, and for the smaller sample with language laterality data, power of 67%. In this smaller subset with language laterality data, 80% power is obtained for heritability of 0.3, and over 95% power for heritability of 0.35. Thus, even the low heritability handedness estimates reviewed in the Introduction should be detectable with this sample. For language laterality, there is around a 2 in 3 chance of detecting a true but small effect of around 0.25, and strong power to detect the higher heritability reported in the DTI study by Jahanshad et al. (2010). However, neither sample is adequately powered to detect heritability levels below .2.
+
+(Figure 1 about here)
 
 
 ```{r plothistos,echo=FALSE}
@@ -669,13 +671,13 @@ ggarrange(h1,h2,h3,ncol=1,nrow=3,common.legend = TRUE,heights=c(1,1,1))
 dev.off()
 ```
 ## Results
-Figure 1 shows the distributions of scores obtained on the two handedness measures and the language laterality index from fTCD, and Figure 2 shows scatterplots depicting the association of the laterality indices between two members of a twin pair.
+Figure 2 shows the distributions of scores obtained on the two handedness measures and the language laterality index from fTCD, and Figure 3 shows scatterplots depicting the association of the laterality indices between two members of a twin pair.
 
-(Figure 1 about here)
+(Figure 2 about here)
 
 The density plots reveal that data from the handedness measures are highly non-normal, following the usual J-shaped distribution for handedness measures, with the majority of cases bunched up at the right handed end of the scale.
 
-(Figure 2 about here)
+(Figure 3 about here)
 
 
 
@@ -710,7 +712,7 @@ Qmypoly.mz
 Qmypoly.dz
 }
 ```
-Figure 2 shows that the correlations between two members of a twin pair are low for all measures.
+Figure 3 shows that the correlations between two members of a twin pair are low for all measures.
 
 Contrary to expectation, no association was found between handedness and the language laterality index: with cases divided into those with laterality indices above and below zero, 76% of the left-handers and 78% of the right-handers were left-lateralised for language.
 
@@ -1174,7 +1176,7 @@ The basic logic of the DeFries-Fulker (1988) method for analysing heritability o
 
 The twin analysis of handedness data from this study gave results that were consistent with those from previous meta-analyses, with around 20% of variance accounted for by genetic factors. The language laterality index, however, gave results that were unexpected in two respects. First twin-twin correlations were close to zero for both MZ and DZ twins, and appeared therefore to be determined entirely by chance; second, there was no difference in rates of left-sided laterality between left-handers (76%) and right-handers (78%), with the latter figure being lower than usually found using other indicators of cerebral lateralisation (Carey & Johnstone, 2014).
 
-This raises the question as to the validity of the laterality index obtained using functional transcranial Doppler ultrasound. If chance is the principal determinant of the LI, is this just because the measure is unreliable within individuals? We do not have test-retest data on children, but it seems unlikely poor reliability is the whole explanation, for three reasons. First, the split half reliability of the LI in this sample is around .85, which indicates reasonable consistency from trial to trial across the testing session. With adults, we have explicitly considered test-retest reliability of the LI obtained with fTCD, and found that, while it varies from task to task, it is generally good, with test-retest correlation of .84 for the task that is most similar to the animation description task (Woodhead et al., 2019). Second, as shown in Figure 2, the children studied here show a robust bias to the left hemisphere at the group level (Wilson & Bishop, 2018). Third, the current result is broadly consistent with the handful of studies that have looked at structural or functional brain lateralisation. Although these have revealed some heritable laterality indices, these are typically small in magnitude. It is also compatible with a recent study sequencing the genomes of 33 subjects with right-hemisphere language dominance and 34 typical left-dominant subjects and finding no associated mutations distinguishing the individuals with atypical language laterality (Carrion-Castillo et al., 2019).
+This raises the question as to the validity of the laterality index obtained using functional transcranial Doppler ultrasound. If chance is the principal determinant of the LI, is this just because the measure is unreliable within individuals? We do not have test-retest data on children, but it seems unlikely poor reliability is the whole explanation, for three reasons. First, the split half reliability of the LI in this sample is around .85, which indicates reasonable consistency from trial to trial across the testing session. With adults, we have explicitly considered test-retest reliability of the LI obtained with fTCD, and found that, while it varies from task to task, it is generally good, with test-retest correlation of .84 for the task that is most similar to the animation description task (Woodhead et al., 2019). Second, as shown in Figure 3, the children studied here show a robust bias to the left hemisphere at the group level (Wilson & Bishop, 2018). Third, the current result is broadly consistent with the handful of studies that have looked at structural or functional brain lateralisation. Although these have revealed some heritable laterality indices, these are typically small in magnitude. It is also compatible with a recent study sequencing the genomes of 33 subjects with right-hemisphere language dominance and 34 typical left-dominant subjects and finding no associated mutations distinguishing the individuals with atypical language laterality (Carrion-Castillo et al., 2019).
 
 When one considers that the levels of blood flow to left and right hemisphere show no indication of genetic influence, it is not surprising that the laterality index, based on the difference between these measures, is not heritable. The evidence for a shared environment effect on the blood flow measures is unexpected; one possibility is that the intrauterine environment could be implicated in influencing development of cerebral vasculature.
 
@@ -1252,9 +1254,9 @@ Woodhead, Z. V. J., Rutherford, H., & Bishop, D. V. M. (2018). Measurement of la
 
 ## Figure legends
 
-Figure 1. Density plots for handedness and language laterality indices
+Figure 2. Density plots for handedness and language laterality indices
 
-Figure 2. Scatterplots by zygosity for handedness and language laterality indices. The data from handedness measures are jittered; Spearman correlation coefficients are shown.
+Figure 3. Scatterplots by zygosity for handedness and language laterality indices. The data from handedness measures are jittered; Spearman correlation coefficients are shown.
 
 
 ## Appendix 1
