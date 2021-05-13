@@ -1,0 +1,180 @@
+---
+title: "Identifying discordant twin pairs for further genetic analysis"
+author: "Dorothy V M Bishop"
+date: "13th March 2021"
+output:
+  
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+Today's date: `r date()`
+
+### sessionInfo()
+R version 4.0.3 (2020-10-10)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Catalina 10.15.7
+
+Matrix products: default
+BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_GB.UTF-8/en_GB.UTF-8/en_GB.UTF-8/C/en_GB.UTF-8/en_GB.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+
+
+```{r setup,  include=FALSE, echo=TRUE}
+
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+
+require(tidyverse)
+require(flextable)
+
+#include = FALSE prevents code and results from appearing in the finished file. R Markdown still runs the code in the chunk, and the results can be used by other chunks. 
+#echo = FALSE prevents code, but not the results from appearing in the finished file.
+
+```
+
+
+```{r readdoubledata,include=FALSE}
+#-------------------------------------------------------------------------
+
+  # Start here: read in data from OSF
+  doubledata <- read.csv('https://osf.io/m9jph/download') #when data public can read in direct from OSF
+  #doubledata<-read.csv('TwinLatOSF.csv',stringsAsFactors = FALSE) #if reading downloaded file
+  doubledata$fam_id <- doubledata$fam_randid #need fam_id variable at later stage
+
+#-------------------------------------------------------------------------
+```
+
+```{r handconcordanttwins, echo=TRUE,include=FALSE}
+doubledata$handconcord <- doubledata$ehp_write*10+doubledata$ehp_write2
+w<-which(doubledata$handconcord==1) #both 1 and 10 are discordant pairs: code both as 10
+doubledata$handconcord[w]<-10
+# twin concordance for handedness
+conc.table <- table(doubledata$handconcord,doubledata$MZDZ,  doubledata$twin)
+conc.table <- conc.table[, , 1] #one twin pair only
+colnames(conc.table) <- c('MZ', 'DZ')
+rownames(conc.table) <- c('neither', 'one', 'both')
+concdf<-as.data.frame(conc.table)
+colnames(concdf)<-c('R handed','Zygosity','Npairs')
+concdf$percent<-NA
+concdf$percent[1:3]<-concdf$Npairs[1:3]/sum(concdf$Npairs[1:3])
+concdf$percent[4:6]<-concdf$Npairs[4:6]/sum(concdf$Npairs[4:6])
+concdf$percent<-round(100*concdf$percent,1)
+ftab<-flextable(concdf[1:3,])
+ftab1a <- set_caption(ftab, "MZ: R handed for writing")
+ftab1a
+ftab<-flextable(concdf[4:6,])
+ftab1b <- set_caption(ftab, "DZ: R handed for writing")
+ftab1b
+```
+
+
+```{r DLDconcordtwins, echo=TRUE,include=FALSE}
+#The twin concordance for DLD 
+conc.table <- table(doubledata$langconcord,doubledata$MZDZ,  doubledata$twin)
+conc.table <- conc.table[, , 1] #one twin pair only
+colnames(conc.table) <- c('MZ', 'DZ')
+rownames(conc.table) <- c('neither', 'one', 'both')
+concdf<-as.data.frame(conc.table)
+colnames(concdf)<-c('N affected','Zygosity','Npairs')
+
+concdf$percent<-NA
+concdf$percent[1:3]<-concdf$Npairs[1:3]/sum(concdf$Npairs[1:3])
+concdf$percent[4:6]<-concdf$Npairs[4:6]/sum(concdf$Npairs[4:6])
+concdf$percent<-round(100*concdf$percent,1)
+ftab<-flextable(concdf[1:3,])
+ftab2a <- set_caption(ftab, "MZ: Categorised as DLD")
+ftab2a
+ftab<-flextable(concdf[4:6,])
+ftab2b <- set_caption(ftab, "DZ: Categorised as DLD")
+ftab2b
+
+```
+
+```{r Dopplerexclusions, echo=FALSE}
+#-------------------------------------------------------
+# Exclude pairs with unusable data - either twin
+#-------------------------------------------------------
+doubledata$doppout <- doubledata$doppexcl + doubledata$doppexcl2
+w <- which(doubledata$doppout == 2)
+doubledata$doppout[w] <- 1
+#remove case of extreme LI, defined as +/-10
+w <- c(which(abs(doubledata$lat_index) > 12), which(abs(doubledata$lat_index2) >
+12))
+doubledata$doppout[w] <-1 #picks up case with LI of -21,which is more than 5 SD from mean!
+# There seems no good reason for this extreme score- data look clean
+# Nothing in this child's history to suggest abnormality. But LI is so extreme it is best removed.
+doubledata2 <- filter(doubledata, doppout < 1)
+# Unit of analysis is twin pair excluded, so need to divide by 2 as one row per twin
+Npairwithhand <- nrow(doubledata) / 2
+Npairwithdopp <- nrow(doubledata2) / 2
+#identify N dropped because too few trials
+w <- which(doubledata$n_trials < 12)
+nlowN <- length(unique(doubledata$fam_id[w])) #This number will be reported in text
+```
+
+```{r LI, echo=TRUE,include=FALSE}
+doubledata2$LIconcord <- doubledata2$li_cat*10+doubledata2$li_cat2
+w<-which(doubledata2$LIconcord==32)
+doubledata2$LIconcord[w]<-23
+w<-which(doubledata2$LIconcord==31)
+doubledata2$LIconcord[w]<-13
+w<-which(doubledata2$LIconcord==21)
+doubledata2$LIconcord[w]<-12
+
+#The twin concordance for language laterality
+conc.table <- table(doubledata2$LIconcord,doubledata2$MZDZ,  doubledata2$twin)
+conc.table <- conc.table[, , 1] #one twin pair only
+colnames(conc.table) <- c('MZ', 'DZ')
+rownames(conc.table) <- c('LL', 'Lbi', 'LR','bibi','Rbi')
+concdf<-as.data.frame(conc.table)
+colnames(concdf)<-c('N affected','Zygosity','Npairs')
+concdf$percent<-NA
+concdf$percent[1:5]<-concdf$Npairs[1:5]/sum(concdf$Npairs[1:5])
+concdf$percent[6:10]<-concdf$Npairs[6:10]/sum(concdf$Npairs[6:10])
+concdf$percent<-round(100*concdf$percent,1)
+ftab<-flextable(concdf[1:5,])
+ftab3a <- set_caption(ftab, "MZ: Language laterality on fTCD")
+ftab3a
+ftab<-flextable(concdf[6:10,])
+ftab3b <- set_caption(ftab, "DZ: Language laterality on fTCD")
+ftab3b
+```
+
+## Tables of discordant twin pairs.
+
+These tables are based on the dataset that is reported here: 
+
+Bishop, D. V. M., & Bates, T. C. (2020). Heritability of language laterality assessed by functional transcranial Doppler ultrasound: A twin study. Wellcome Open Research, 4, 161. https://doi.org/10.12688/wellcomeopenres.15524.3.  
+
+For each of the phenotypes considered here, the proportions of discordant twins will vary depending on the exact definition.  N. B. I have a lot of data on this sample. I could easily break these down by sex as well - but then the numbers get smaller.  Unlike in most twin studies, the DZ pairs do include some MF pairs. 
+
+
+First we have data for handedness, just assessed by writing hand.  We do also have more continuous data from Edinburgh Handedness Inventory and also Bishop Reaching Task (QHP) - but these create difficulties for identifying discordant twins.   
+`r ftab1a`   
+`r ftab1b`   
+
+Next we have data on language laterality from functional transcranial Doppler ultrasound. Here the children are categorised as left, right, or bilateral.  The bilateral category may have genuine cases of bilateral language, but it also could include cases with rather unreliable data.  (We may be able to distinguish these by considering trial-by-trial variation in these children).  For the time being, I've just coded according to this 3-way split.
+
+`r ftab3a`   
+`r ftab3b`   
+
+
+Finally, data on Developmental Language Disorder. There are many ways this can be coded. This coding just takes a very broad definition of language problems, including any mention of history of speech-and-language therapy or communication difficulties.  Note that the rates of discordance in MZ twins seem low, given the high heritability for DLD,  but in previous studies I usually found that in 'discordant' pairs, there was usually similarity on language measures - it was just the case that we might find one child who had a more severe and selective problem. But if one MZ child met criteria for a persistent language problem, the other one usually did. With DZ twins, it is much more common to find one twin with DLD and the other with no problems at all. 
+`r ftab2a`   
+`r ftab2b`   
+
+
+
+
+
+
+
